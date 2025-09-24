@@ -1,5 +1,23 @@
 import Inventory from "../models/inventory.model.js";
 import mongoose from "mongoose";
+import Joi from "joi"; // for validation
+
+// ------------------- Validation Schemas -------------------
+const inventorySchema = Joi.object({
+  ItemName: Joi.string().min(2).max(100).required(),
+  Category: Joi.string()
+    .valid(
+      "Men's Clothing",
+      "Women's Clothing",
+      "Kids' Clothing",
+      "Accessories",
+      "Footwear"
+    )
+    .required(),
+  price: Joi.number().min(0).required(),
+  quantity: Joi.number().min(0).required(),
+  haveOffer: Joi.boolean().optional(),
+});
 
 //GET all inventories
 export const getInventories = async (req, res) => {
@@ -28,7 +46,11 @@ export const getInventory = async (req, res) => {
 //create new inventory
 export const createInventory = async (req, res, next) => {
   try {
-    const addinventory = await Inventory.create(req.body);
+    // validate body
+    const { error, value } = inventorySchema.validate(req.body);
+    if (error) return res.status(400).json({ error: error.details[0].message });
+
+    const addinventory = await Inventory.create(value); // safe input
     return res.status(201).json(addinventory);
   } catch (error) {
     next(error);
@@ -60,11 +82,15 @@ export const updateInventory = async (req, res) => {
     return res.status(404).json({ error: "No such inventory" });
   }
 
+  // validate update data
+  const { error, value } = inventorySchema.validate(req.body, {
+    allowUnknown: false,
+  });
+  if (error) return res.status(400).json({ error: error.details[0].message });
+
   const inventory = await Inventory.findOneAndUpdate(
     { _id: id },
-    {
-      ...req.body,
-    },
+    { $set: value }, // no spreading req.body
     { new: true }
   );
 
@@ -79,11 +105,12 @@ export const updateInventory = async (req, res) => {
 
 export const getInventorySearch = async (req, res, next) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50); // hard cap
     const startIndex = parseInt(req.query.startIndex) || 0;
 
+    // validate category
     let Category = req.query.category;
-    if (Category === undefined || Category === "all") {
+    if (!Category || Category === "all") {
       Category = {
         $in: [
           "Men's Clothing",
@@ -95,17 +122,23 @@ export const getInventorySearch = async (req, res, next) => {
       };
     }
 
+    // sanitize searchTerm (no regex DoS)
     const searchTerm = req.query.searchTerm || "";
+    const safeSearch = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // escape regex chars
 
-    const sort = req.query.sort || "createdAt";
+    // allow only safe sort fields
+    const allowedSortFields = ["createdAt", "price", "ItemName"];
+    const sortField = allowedSortFields.includes(req.query.sort)
+      ? req.query.sort
+      : "createdAt";
 
-    const order = req.query.order || "desc";
-    console.log("cat", Category);
+    const order = req.query.order === "asc" ? 1 : -1;
+
     const events = await Inventory.find({
-      ItemName: { $regex: searchTerm, $options: "i" },
+      ItemName: { $regex: safeSearch, $options: "i" },
       Category,
     })
-      .sort({ [sort]: order })
+      .sort({ [sortField]: order })
       .skip(startIndex)
       .limit(limit);
 
