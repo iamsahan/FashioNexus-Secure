@@ -4,7 +4,7 @@ import { errorHandler } from "./error.js";
 // Create CSRF instance
 const tokens = new csrf();
 
-// Store tokens (in production, use Redis or database)
+// Store tokens
 const tokenStore = new Map();
 
 // Generate CSRF token and associate with user session
