@@ -1,12 +1,12 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
 import Swal from "sweetalert2";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { FaCcMastercard } from "react-icons/fa";
 import { FaCcVisa } from "react-icons/fa";
 import { SiAmericanexpress } from "react-icons/si";
+import csrfManager from "../../utils/csrfManager";
 // import generateBill from "../components/GenarateBill";
 
 const Checkout = () => {
@@ -177,23 +177,48 @@ const Checkout = () => {
     try {
       console.log(orderData.items);
 
-      const response = await axios.post("/api/order/add", orderData); // Ensure the URL is correct
+      // Use CSRF-protected API call instead of axios
+      const response = await csrfManager.post("/api/order/add", orderData);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to place order");
+      }
+
+      const result = await response.json();
       localStorage.removeItem("cart");
       //   generateBill({
       //     ...orderData,
-      //     orderId: response.data.orderId,
+      //     orderId: result.orderId,
       //   });
       setLoading(false);
       Swal.fire(
         "Success",
-        `Order placed successfully! Order ID: ${response.data.orderId}`,
+        `Order placed successfully! Order ID: ${result.orderId}`,
         "success"
       ).then(() => {
         navigate("/my-orders");
       });
     } catch (error) {
       setLoading(false);
-      Swal.fire("Error", "Failed to place order. Please try again.", "error");
+      console.error("Order placement error:", error);
+
+      // Handle specific CSRF errors
+      if (error.message.includes("CSRF") || error.message.includes("token")) {
+        Swal.fire(
+          "Security Error",
+          "Session expired. Please refresh the page and try again.",
+          "error"
+        ).then(() => {
+          window.location.reload();
+        });
+      } else {
+        Swal.fire(
+          "Error",
+          error.message || "Failed to place order. Please try again.",
+          "error"
+        );
+      }
     }
   };
 

@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import axios from "axios";
 import Swal from "sweetalert2";
 import { motion } from "framer-motion";
 import SimpleBar from "simplebar-react";
 import "simplebar-react/dist/simplebar.min.css"; // Import SimpleBar styles
+import csrfManager from "../../utils/csrfManager";
 
 const EditOrderPopup = ({ order, onClose, onUpdate }) => {
   const [customer, setCustomer] = useState(order.customerInfo || {});
@@ -34,15 +34,35 @@ const EditOrderPopup = ({ order, onClose, onUpdate }) => {
         items: items,
       };
 
-      const response = await axios.put(
+      // Use CSRF-protected API call instead of axios
+      const response = await csrfManager.put(
         `/api/order/update/${order._id}`,
         updatedOrder
       );
 
-      onUpdate(response.data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to update order");
+      }
+
+      const result = await response.json();
+      onUpdate(result);
       Swal.fire("Success", "Order updated successfully", "success");
     } catch (error) {
-      Swal.fire("Error", "Failed to update order", "error");
+      console.error("Order update error:", error);
+
+      // Handle specific CSRF errors
+      if (error.message.includes("CSRF") || error.message.includes("token")) {
+        Swal.fire(
+          "Security Error",
+          "Session expired. Please refresh the page and try again.",
+          "error"
+        ).then(() => {
+          window.location.reload();
+        });
+      } else {
+        Swal.fire("Error", error.message || "Failed to update order", "error");
+      }
     }
   };
 
