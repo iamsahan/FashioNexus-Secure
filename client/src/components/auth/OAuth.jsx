@@ -15,20 +15,17 @@ export default function OAuth() {
       const auth = getAuth(app);
 
       const result = await signInWithPopup(auth, provider);
-
+      const idToken = await result.user.getIdToken();
       const res = await fetch("/api/auth/google", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: result.user.displayName,
-          email: result.user.email,
-          photo: result.user.photoURL,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+        credentials: "include", // include refresh cookie
       });
       const data = await res.json();
-      dispatch(signInSuccess(data));
+      if (!res.ok) throw new Error(data.message || "Google auth failed");
+      // Merge access token into user object for client-side usage
+      dispatch(signInSuccess({ ...data.user, accessToken: data.accessToken }));
       navigate("/");
     } catch (error) {
       console.log("could not sign in with google", error);

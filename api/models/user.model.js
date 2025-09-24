@@ -37,6 +37,15 @@ const userSchema = new mongoose.Schema(
       default:
         "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR5dgckCEFdaR4QrzY1cdQTF_VzmwmPkSV2UA&usqp=CAU",
     },
+    refreshTokens: [
+      {
+        _id: false,
+        hash: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now },
+        userAgent: { type: String },
+        ip: { type: String },
+      },
+    ],
   },
   { timestamps: true }
 );

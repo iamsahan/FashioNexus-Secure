@@ -1,6 +1,6 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
-import { google, signOut, signin, signup } from "../controllers/auth.controllers.js";
+import { google, signOut, signin, signup, refresh } from "../controllers/auth.controllers.js";
 
 const router = express.Router();
 
@@ -16,6 +16,7 @@ const signinLimiter = rateLimit({
 router.post("/signup", signup);
 router.post("/signin", signinLimiter, signin);
 router.post("/google", google);
+router.post("/refresh", refresh);
 router.get("/signout", signOut);
 
 export default router;
