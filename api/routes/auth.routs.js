@@ -6,7 +6,7 @@ const router = express.Router();
 
 // Sign-in brute force mitigation
 const signinLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
+  windowMs: 15 * 60 * 1000,
   max: parseInt(process.env.SIGNIN_MAX_PER_WINDOW || "20", 10),
   standardHeaders: true,
   legacyHeaders: false,

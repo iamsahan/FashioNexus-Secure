@@ -11,6 +11,7 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import nodemailer from "nodemailer";
 import multer from "multer";
+import helmet from "helmet";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -42,45 +43,110 @@ app.get("/", (req, res) => {
   res.json({ mssg: "Welcome to the app" });
 });
 
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 app.use(
   cors({
-     origin: "*",
+    origin: process.env.CORS_ORIGIN?.split(",") || "*",
     methods: "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-    credentials: true, 
+    credentials: true,
   })
 );
+// Security headers via Helmet
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
+// Additional strict headers
+app.use((req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
+  );
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  next();
+});
 
 app.listen(3000, () => {
   console.log("Server listening on port 3000!!!");
 });
 
+// Secure upload constraints
+const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
+const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB per file
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/"); // Destination folder
+    cb(null, "uploads/");
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname)); // Unique file name
+    const safeName = Date.now() + "-" + crypto.randomUUID() + path.extname(file.originalname).toLowerCase();
+    cb(null, safeName);
   },
 });
 
-const upload = multer({ storage });
+const fileFilter = (req, file, cb) => {
+  if (!ALLOWED_MIME.includes(file.mimetype)) {
+    return cb(new Error("Unsupported file type"));
+  }
+  cb(null, true);
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: MAX_FILE_SIZE_BYTES, files: 3 },
+});
 
 // Create 'uploads' directory if not exists
 if (!fs.existsSync("uploads")) {
   fs.mkdirSync("uploads");
 }
 
-// Route to handle image uploads
-app.post("/api/upload", upload.array("images", 3), (req, res) => {
-  const filePaths = req.files.map((file) => `uploads/${file.filename}`);
-  res.json({ filePaths });
+// Auth middleware import (lazy to avoid circular) & route hardening
+import { verifyToken } from "./utils/verifyUser.js";
+
+// Route to handle image uploads (authenticated & validated)
+app.post("/api/upload", verifyToken, (req, res, next) => {
+  upload.array("images", 3)(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        return res
+          .status(400)
+          .json({ success: false, message: `Upload error: ${err.message}` });
+      }
+      return res
+        .status(400)
+        .json({ success: false, message: err.message || "Upload failed" });
+    }
+    if (!req.files || req.files.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No valid files uploaded" });
+    }
+    const filePaths = req.files.map((file) => `uploads/${file.filename}`);
+    res.json({ success: true, filePaths });
+  });
 });
 
 const __dirname = dirname(fileURLToPath(import.meta.url)); // Get directory name
 
-app.use("/uploads", express.static(join(__dirname, "uploads")));
+// Serve uploads as static with caching & prevent execution via proper content-type sniffing protection
+app.use(
+  "/uploads",
+  express.static(join(__dirname, "uploads"), {
+    setHeaders: (res, filePath) => {
+      res.setHeader("Cache-Control", "public, max-age=31536000");
+      // Force download for anything not an allowed image (defense-in-depth)
+      if (!/(\.png|\.jpg|\.jpeg|\.webp)$/i.test(filePath)) {
+        res.setHeader("Content-Disposition", "attachment");
+      }
+    },
+  })
+);
 
 app.use("/api/auth", authRouter);
 app.use("/api/auth", otpRouter); // /sendotp & /verifyotp
