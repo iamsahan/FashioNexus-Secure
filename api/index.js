@@ -48,20 +48,12 @@ app.use(cookieParser());
 // Configure CORS with restricted origins for production
 const allowedOrigins =
   process.env.NODE_ENV === "production"
-    ? [
-        "https://your-production-domain.com",
-        "https://www.your-production-domain.com",
-      ]
-    : [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-      ];
+    ? ["https://fashio.flowiix.com"]
+    : ["http://localhost:5173", "http://127.0.0.1:5173"];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (like mobile apps or curl requests)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.indexOf(origin) !== -1) {
@@ -72,7 +64,7 @@ app.use(
     },
     methods: "GET,POST,PUT,DELETE,OPTIONS,PATCH",
     credentials: true,
-    optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+    optionsSuccessStatus: 200,
   })
 );
 
