@@ -11,9 +11,11 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import nodemailer from "nodemailer";
 import multer from "multer";
-import helmet from "helmet";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
+import helmet from "helmet"; // used only on the upload endpoint (not global)
+import { veryfyTocken } from "./utils/verifyUser.js";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 
@@ -43,54 +45,37 @@ app.get("/", (req, res) => {
   res.json({ mssg: "Welcome to the app" });
 });
 
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json());
 app.use(cookieParser());
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN?.split(",") || "*",
+     origin: "*",
     methods: "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-    credentials: true,
+    credentials: true, 
   })
 );
-// Security headers via Helmet
-app.use(
-  helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-  })
-);
-// Additional strict headers
-app.use((req, res, next) => {
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'"
-  );
-  res.setHeader("X-Frame-Options", "DENY");
-  res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("Referrer-Policy", "no-referrer");
-  next();
-});
 
 app.listen(3000, () => {
   console.log("Server listening on port 3000!!!");
 });
 
-// Secure upload constraints
-const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
-const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB per file
+// Allowed image MIME types
+const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/");
+    cb(null, "uploads/"); // Destination folder outside of any dynamic execution context
   },
   filename: (req, file, cb) => {
-    const safeName = Date.now() + "-" + crypto.randomUUID() + path.extname(file.originalname).toLowerCase();
-    cb(null, safeName);
+    const safeExt = path.extname(file.originalname).toLowerCase();
+    const randomName = crypto.randomBytes(16).toString("hex");
+    cb(null, randomName + safeExt); // High entropy filename prevents enumeration
   },
 });
 
 const fileFilter = (req, file, cb) => {
   if (!ALLOWED_MIME.includes(file.mimetype)) {
-    return cb(new Error("Unsupported file type"));
+    return cb(new Error("Invalid file type. Only JPG, PNG, WEBP allowed."));
   }
   cb(null, true);
 };
@@ -98,7 +83,10 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: MAX_FILE_SIZE_BYTES, files: 3 },
+  limits: {
+    fileSize: 2 * 1024 * 1024, // 2MB per file
+    files: 3, // align with UI expectation
+  },
 });
 
 // Create 'uploads' directory if not exists
@@ -106,47 +94,62 @@ if (!fs.existsSync("uploads")) {
   fs.mkdirSync("uploads");
 }
 
-// Auth middleware import (lazy to avoid circular) & route hardening
-import { verifyToken } from "./utils/verifyUser.js";
-
-// Route to handle image uploads (authenticated & validated)
-app.post("/api/upload", verifyToken, (req, res, next) => {
-  upload.array("images", 3)(req, res, (err) => {
-    if (err) {
-      if (err instanceof multer.MulterError) {
+// Secure image upload endpoint (route-level security only)
+app.post(
+  "/api/upload",
+  veryfyTocken, // Require authenticated user
+  // Route-specific security headers via Helmet (not applied globally)
+  helmet({
+    frameguard: { action: "deny" }, // Prevent clickjacking
+    contentSecurityPolicy: {
+      useDefaults: false,
+      directives: {
+        defaultSrc: ["'none'"],
+        imgSrc: ["'self" , "data:"],
+        scriptSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        formAction: ["'self'"],
+      },
+    },
+    // Some Helmet middlewares disabled because we're returning JSON only
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: { policy: "same-origin" },
+    crossOriginResourcePolicy: { policy: "same-origin" },
+  }),
+  (req, res, next) => {
+    // Additional minimal hardening headers
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    next();
+  },
+  (req, res, next) => {
+    upload.array("images", 3)(req, res, (err) => {
+      if (err) {
+        if (err.message.includes("File too large")) {
+          return res
+            .status(400)
+            .json({ success: false, message: "File size exceeds 2MB limit" });
+        }
         return res
           .status(400)
-          .json({ success: false, message: `Upload error: ${err.message}` });
+          .json({ success: false, message: err.message || "Upload failed" });
       }
-      return res
-        .status(400)
-        .json({ success: false, message: err.message || "Upload failed" });
-    }
+      next();
+    });
+  },
+  (req, res) => {
     if (!req.files || req.files.length === 0) {
       return res
         .status(400)
-        .json({ success: false, message: "No valid files uploaded" });
+        .json({ success: false, message: "No valid images uploaded" });
     }
     const filePaths = req.files.map((file) => `uploads/${file.filename}`);
-    res.json({ success: true, filePaths });
-  });
-});
+    res.status(201).json({ success: true, filePaths });
+  }
+);
 
 const __dirname = dirname(fileURLToPath(import.meta.url)); // Get directory name
 
-// Serve uploads as static with caching & prevent execution via proper content-type sniffing protection
-app.use(
-  "/uploads",
-  express.static(join(__dirname, "uploads"), {
-    setHeaders: (res, filePath) => {
-      res.setHeader("Cache-Control", "public, max-age=31536000");
-      // Force download for anything not an allowed image (defense-in-depth)
-      if (!/(\.png|\.jpg|\.jpeg|\.webp)$/i.test(filePath)) {
-        res.setHeader("Content-Disposition", "attachment");
-      }
-    },
-  })
-);
+app.use("/uploads", express.static(join(__dirname, "uploads")));
 
 app.use("/api/auth", authRouter);
 app.use("/api/auth", otpRouter); // /sendotp & /verifyotp
