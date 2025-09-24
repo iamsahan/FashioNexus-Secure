@@ -9,17 +9,26 @@ import {
   test,
   updateUser,
 } from "../controllers/user.controllers.js";
-import { veryfyTocken } from "../utils/verifyUser.js";
+import {
+  authenticate,
+  requireManager,
+  requireSelfOrManager,
+} from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.get("/all-Users", getAllUsers);
-router.delete("/delete-user/:id", deleteUserByid);
+// Admin routes - only managers can access
+router.get("/all-Users", authenticate, requireManager, getAllUsers);
+router.delete("/delete-user/:id", authenticate, requireManager, deleteUserByid);
+router.get("/search", authenticate, requireManager, getUserSearch);
+router.post("/add", authenticate, requireManager, addUser);
+
+// Public routes
 router.get("/test", test);
-router.post("/add", addUser);
-router.get("/search", getUserSearch);
-router.post("/update/:id", veryfyTocken, updateUser);
-router.delete("/delete/:id", veryfyTocken, deleteUser);
-router.get("/:id", veryfyTocken, getUser);
+
+// Self or manager access routes
+router.post("/update/:id", authenticate, requireSelfOrManager, updateUser);
+router.delete("/delete/:id", authenticate, requireSelfOrManager, deleteUser);
+router.get("/:id", authenticate, requireSelfOrManager, getUser);
 
 export default router;

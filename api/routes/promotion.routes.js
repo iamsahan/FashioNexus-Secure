@@ -1,7 +1,5 @@
 import express from "express";
-
 import Promotion from "../models/promotion.model.js";
-
 import {
   createPromotion,
   getPromotions,
@@ -11,28 +9,19 @@ import {
   getPromotionSearch,
   getOfferbyItemId,
 } from "../controllers/promotion.controllers.js";
+import { authenticate, requireManager } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-//Get all promotion
+// Public routes - anyone can view promotions
 router.get("/", getPromotions);
-
-//GET a single promotion
+router.get("/search/get", getPromotionSearch);
+router.get("/offers/:itemId", getOfferbyItemId);
 router.get("/:id", getPromotion);
 
-//POST a new promotion
-router.post("/", createPromotion);
-
-//DELETE a promotion
-router.delete("/:id", deletePromotion);
-
-//UPDATE a promotion
-router.patch("/:id", updatePromotion);
-
-//SEARCH
-router.get("/search/get", getPromotionSearch);
-
-//GET a promotion by item id
-router.get("/offers/:itemId", getOfferbyItemId);
+// Admin routes - only managers can manage promotions
+router.post("/", authenticate, requireManager, createPromotion);
+router.delete("/:id", authenticate, requireManager, deletePromotion);
+router.patch("/:id", authenticate, requireManager, updatePromotion);
 
 export default router;

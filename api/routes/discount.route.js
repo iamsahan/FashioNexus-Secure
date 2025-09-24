@@ -5,15 +5,16 @@ import {
   getDiscounts,
   updateDiscounts,
 } from "../controllers/discount.controller.js";
-import { veryfyTocken } from "../utils/verifyUser.js";
-import { validateCSRFToken } from "../utils/csrfProtection.js";
+import { authenticate, requireManager } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-// Protected routes with CSRF validation
-router.post("/add", veryfyTocken, validateCSRFToken, createDiscount);
-router.get("/get", getDiscounts); // Public read endpoint
-router.put("/update/:id", veryfyTocken, validateCSRFToken, updateDiscounts);
-router.delete("/delete/:id", veryfyTocken, validateCSRFToken, deleteDiscounts);
+// Public route - anyone can view discounts
+router.get("/get", getDiscounts);
+
+// Admin routes - only managers can manage discounts
+router.post("/add", authenticate, requireManager, createDiscount);
+router.put("/update/:id", authenticate, requireManager, updateDiscounts);
+router.delete("/delete/:id", authenticate, requireManager, deleteDiscounts);
 
 export default router;
