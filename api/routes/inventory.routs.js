@@ -1,5 +1,4 @@
 import express from "express";
-
 import {
   getInventories,
   getInventory,
@@ -9,25 +8,18 @@ import {
   getInventorySearch,
   getInventorieswithOffers,
 } from "../controllers/inventory.controller.js";
+import { authenticate, requireManager } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-//GET all inventories
+// Public routes - anyone can view inventory
 router.get("/all-offers", getInventorieswithOffers);
-
-//GET a single inventory
+router.get("/search/get", getInventorySearch);
 router.get("/:id", getInventory);
 
-//POST a new inventory
-router.post("/add", createInventory);
-
-//DELETE an inventory
-router.delete("/:id", deleteInventory);
-
-//UPDATE an inventory
-router.patch("/:id", updateInventory);
-
-//SEARCH
-router.get("/search/get", getInventorySearch);
+// Admin routes - only managers can manage inventory
+router.post("/add", authenticate, requireManager, createInventory);
+router.delete("/:id", authenticate, requireManager, deleteInventory);
+router.patch("/:id", authenticate, requireManager, updateInventory);
 
 export default router;
