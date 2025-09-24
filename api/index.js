@@ -22,8 +22,7 @@ import inventoryRouter from "./routes/inventory.routs.js";
 import promotionRouter from "./routes/promotion.routes.js";
 
 dotenv.config();
-const MONGODB_URL =
-  "mongodb+srv://pgmsadeep:1234@cluster0.phudmlq.mongodb.net/fashion?retryWrites=true&w=majority";
+const MONGODB_URL = process.env.MONGO_URI; // Use the env variable
 
 mongoose
   .connect(MONGODB_URL)
@@ -109,14 +108,7 @@ app.use((err, req, res, next) => {
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Configure Nodemailer
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: "sadeepmalaka2@gmail.com",
-    pass: "bfxr wzmt jalb grxp",
-  },
-});
+
 
 // OTP Storage
 const otpMap = new Map(); // Key: email, Value: OTP
@@ -140,7 +132,7 @@ app.post("/api/auth/sendotp", (req, res) => {
   otpMap.set(email, otp); // Store OTP for the email
 
   const mailOptions = {
-    from: "sadeepmalaka2@gmail.com",
+    from: process.env.MAIL_USER,
     to: email,
     subject: "Email Verification OTP",
     html: `
