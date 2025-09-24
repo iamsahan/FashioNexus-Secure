@@ -12,19 +12,38 @@ import {
   requireManager,
   requireSelfOrManager,
 } from "../middleware/auth.middleware.js";
+import { validateCSRFToken } from "../utils/csrfProtection.js";
 
 const router = express.Router();
 
-// Customer routes - customers can create their own orders
-router.post("/add", authenticate, createOrder);
+// Customer routes - customers can create their own orders (with CSRF protection)
+router.post("/add", authenticate, validateCSRFToken, createOrder);
 
-// User-specific routes - users can view their own orders, managers can view any
+// User-specific routes - users can view their own orders, managers can view any (GET requests don't need CSRF)
 router.get("/get/:userId", authenticate, requireSelfOrManager, OrderByUser);
 
 // Admin routes - only managers can access
-router.get("/get", authenticate, requireManager, AllOrder);
-router.put("/update/:orderId", authenticate, requireManager, updateOrder);
-router.put("/status/:id", authenticate, requireManager, updateStatus);
-router.delete("/delete/:orderId", authenticate, requireManager, deleteOrder);
+router.get("/get", authenticate, requireManager, AllOrder); // GET request, no CSRF needed
+router.put(
+  "/update/:orderId",
+  authenticate,
+  requireManager,
+  validateCSRFToken,
+  updateOrder
+);
+router.put(
+  "/status/:id",
+  authenticate,
+  requireManager,
+  validateCSRFToken,
+  updateStatus
+);
+router.delete(
+  "/delete/:orderId",
+  authenticate,
+  requireManager,
+  validateCSRFToken,
+  deleteOrder
+);
 
 export default router;

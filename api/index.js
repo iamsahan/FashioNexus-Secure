@@ -14,7 +14,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import { veryfyTocken } from "./utils/verifyUser.js";
+import { authenticate } from "./middleware/auth.middleware.js";
 import { getCSRFToken } from "./utils/csrfProtection.js";
 
 //dewni
@@ -99,7 +99,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url)); // Get directory name
 app.use("/uploads", express.static(join(__dirname, "uploads")));
 
 // CSRF token endpoint (must be authenticated)
-app.get("/api/csrf-token", veryfyTocken, getCSRFToken);
+app.get("/api/csrf-token", authenticate, getCSRFToken);
 
 app.use("/api/auth", authRouter);
 
