@@ -29,9 +29,11 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: { type: String, enum: ["Cash", "Card"], required: true },
   cardInfo: {
-    cardNumber: { type: String },
-    expiryDate: { type: String },
-    cvv: { type: String },
+    // cardNumber: { type: String },
+    // expiryDate: { type: String },
+    // cvv: { type: String },
+    last4: { type: String }, // Only last 4 digits
+    expiryDate: { type: String }, // Optional
   },
   orderId: { type: String, unique: true },
   createdAt: { type: Date, default: Date.now },

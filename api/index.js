@@ -28,8 +28,7 @@ import inventoryRouter from "./routes/inventory.routs.js";
 import promotionRouter from "./routes/promotion.routes.js";
 
 dotenv.config();
-const MONGODB_URL =
-  "mongodb+srv://pgmsadeep:1234@cluster0.phudmlq.mongodb.net/fashion?retryWrites=true&w=majority";
+const MONGODB_URL = process.env.MONGO_URI; // Use the env variable
 
 mongoose
   .connect(MONGODB_URL)
@@ -116,12 +115,12 @@ app.post(
   "/api/upload",
   veryfyTocken,
   helmet({
-    frameguard: { action: "deny" }, 
+    frameguard: { action: "deny" },
     contentSecurityPolicy: {
       useDefaults: false,
       directives: {
         defaultSrc: ["'none'"],
-        imgSrc: ["'self" , "data:"],
+        imgSrc: ["'self", "data:"],
         scriptSrc: ["'none'"],
         frameAncestors: ["'none'"],
         formAction: ["'self'"],

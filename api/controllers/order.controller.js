@@ -1,6 +1,12 @@
 import Order from "../models/order.model.js";
 import { v4 as uuidv4 } from "uuid";
-// Helper function to generate unique 6-digit order ID starting with 'O'
+
+// Helper function to sanitize order data before sending response
+const sanitizeOrder = (order) => {
+  const { cardInfo, ...safeOrder } = order.toObject(); // remove cardInfo
+  return safeOrder;
+};
+
 export const createOrder = async (req, res) => {
   try {
     const {
@@ -29,6 +35,15 @@ export const createOrder = async (req, res) => {
     // Generate a unique order ID
     const orderId = `ORD-${uuidv4().slice(0, 6).toUpperCase()}`;
 
+    // Only store safe card info
+    const safeCardInfo =
+      paymentMethod === "Card"
+        ? {
+            last4: cardInfo?.cardNumber?.slice(-4), // Only last 4 digits
+            expiryDate: cardInfo?.expiryDate, // Optional
+          }
+        : undefined;
+
     const newOrder = new Order({
       userId,
       items,
@@ -36,7 +51,7 @@ export const createOrder = async (req, res) => {
       customerInfo,
       deliveryInfo,
       paymentMethod,
-      cardInfo: paymentMethod === "Card" ? cardInfo : undefined,
+      cardInfo: safeCardInfo, // No raw card number or CVV
       orderId,
     });
 
@@ -54,7 +69,9 @@ export const createOrder = async (req, res) => {
 // Fetch orders by userId
 export const OrderByUser = async (req, res) => {
   try {
-    const orders = await Order.find({ userId: req.params.userId });
+    const orders = await Order.find({ userId: req.params.userId }).select(
+      "-cardInfo" // exclude entire cardInfo object
+    );
     res.json(orders);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -63,7 +80,7 @@ export const OrderByUser = async (req, res) => {
 
 export const AllOrder = async (req, res) => {
   try {
-    const orders = await Order.find();
+    const orders = await Order.find().select("-cardInfo");
     res.json(orders);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -86,7 +103,7 @@ export const updateStatus = async (req, res) => {
       req.params.id,
       { status },
       { new: true }
-    );
+    ).select("-cardInfo");
     res.json(response);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -97,7 +114,7 @@ export const updateOrder = async (req, res) => {
   try {
     const order = await Order.findByIdAndUpdate(req.params.orderId, req.body, {
       new: true,
-    });
+    }).select("-cardInfo");
     res.json(order);
   } catch (error) {
     res.status(500).json({ message: error.message });
