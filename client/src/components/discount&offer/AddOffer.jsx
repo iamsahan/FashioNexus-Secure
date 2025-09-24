@@ -6,6 +6,7 @@ import { FiArrowLeft, FiLoader } from "react-icons/fi";
 import { MdLocalOffer } from "react-icons/md";
 import { BsPercent } from "react-icons/bs";
 import ClipLoader from "react-spinners/ClipLoader";
+import DOMPurify from "dompurify"; // Import DOMPurify for XSS prevention
 
 export default function AddOffer() {
   const location = useLocation();
@@ -29,42 +30,99 @@ export default function AddOffer() {
 
   const [error, setError] = useState(null);
 
+  // ---------------- Helper: Calculate Final Price ----------------
   const calculateFinalPrice = (price, discountPercentage) => {
-    if (price && discountPercentage) {
-      return (price - (price * discountPercentage) / 100).toFixed(2);
-    }
+    const p = parseFloat(price);
+    const d = parseFloat(discountPercentage);
+    if (!isNaN(p) && !isNaN(d)) return (p - (p * d) / 100).toFixed(2);
     return "";
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
+  // ---------------- Helper: Positive Number Validation ----------------
+  const isPositiveNumber = (value) => /^\d+(\.\d{1,2})?$/.test(value);
 
-    if (name === "discountPercentage" || name === "price") {
-      if (/^\d*$/.test(value)) {
-        const updatedFormData = { ...formData, [name]: value };
-        const finalPrice = calculateFinalPrice(
-          updatedFormData.price,
-          updatedFormData.discountPercentage
-        );
-        setFormData({ ...updatedFormData, finalPrice });
-      } else {
+  const handleInputChange = (e) => {
+    let { name, value } = e.target;
+
+    // ---------- FIX: Sanitize text inputs to prevent XSS ----------
+    if (["promotionName", "promotionCode", "description"].includes(name)) {
+      value = DOMPurify.sanitize(value);
+      // DOMPurify removes any malicious HTML/JS like <script>alert('XSS')</script>
+    }
+
+    // ---------- FIX: Validate numeric fields ----------
+    if (["discountPercentage", "price", "usageLimit"].includes(name)) {
+      if (!isPositiveNumber(value) && value !== "") {
         Swal.fire({
           icon: "error",
           title: "Invalid Input",
           text: `${
-            name === "discountPercentage" ? "Discount Percentage" : "Price"
-          } should only contain numbers.`,
+            name === "discountPercentage"
+              ? "Discount Percentage"
+              : name === "price"
+              ? "Price"
+              : "Usage Limit"
+          } must be a positive number.`,
         });
+        return; // Reject invalid input
       }
-    } else {
-      setFormData({ ...formData, [name]: value });
     }
+
+    const updatedFormData = { ...formData, [name]: value };
+
+    // ---------- Recalculate final price if price/discount changes ----------
+    if (name === "discountPercentage" || name === "price") {
+      updatedFormData.finalPrice = calculateFinalPrice(
+        updatedFormData.price,
+        updatedFormData.discountPercentage
+      );
+    }
+
+    setFormData(updatedFormData);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true); // Start loading
 
+    // ---------- Required Field Validation ----------
+    if (!formData.promotionName.trim()) {
+      setLoading(false);
+      return Swal.fire({
+        icon: "error",
+        title: "Validation Error",
+        text: "Offer name is required.",
+      });
+    }
+
+    if (!formData.promotionCode.trim()) {
+      setLoading(false);
+      return Swal.fire({
+        icon: "error",
+        title: "Validation Error",
+        text: "Offer code is required.",
+      });
+    }
+
+    if (!isPositiveNumber(formData.discountPercentage)) {
+      setLoading(false);
+      return Swal.fire({
+        icon: "error",
+        title: "Validation Error",
+        text: "Discount percentage must be a valid positive number.",
+      });
+    }
+
+    if (!isPositiveNumber(formData.usageLimit)) {
+      setLoading(false);
+      return Swal.fire({
+        icon: "error",
+        title: "Validation Error",
+        text: "Usage limit must be a valid positive number.",
+      });
+    }
+
+    // ---------- Date Validation ----------
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -101,57 +159,62 @@ export default function AddOffer() {
       return;
     }
 
-    if (parseInt(formData.usageLimit, 10) <= 0) {
+    // ---------- FIX: Sanitize entire payload before sending ----------
+    const payload = {
+      ...formData,
+      promotionName: DOMPurify.sanitize(formData.promotionName),
+      promotionCode: DOMPurify.sanitize(formData.promotionCode),
+      description: DOMPurify.sanitize(formData.description),
+    };
+
+    try {
+      const response = await fetch("/api/promotions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await response.json();
+      setLoading(false);
+
+      if (!response.ok) {
+        setError(json.error);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: json.message,
+        });
+      } else {
+        Swal.fire({
+          icon: "success",
+          title: "Success",
+          text: "Promotion added successfully",
+        });
+
+        // ---------- Reset form ----------
+        setFormData({
+          promotionName: "",
+          promotionCode: "",
+          description: "",
+          promotionType: "pDiscount",
+          discountPercentage: "",
+          price: "",
+          finalPrice: "",
+          startDate: "",
+          endDate: "",
+          applicableProducts: "apparel",
+          usageLimit: "",
+        });
+
+        navigate("/manager/discount-management?tab=discounts");
+      }
+    } catch (err) {
       setLoading(false);
       Swal.fire({
         icon: "error",
-        title: "Validation Error",
-        text: "Usage Limit cannot be zero or negative.",
-      });
-      return;
-    }
-
-    const response = await fetch("/api/promotions", {
-      method: "POST",
-      body: JSON.stringify({
-        ...formData,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-
-    const json = await response.json();
-    setLoading(false); // Stop loading
-
-    if (!response.ok) {
-      setError(json.error);
-      Swal.fire({
-        icon: "error",
         title: "Error",
-        text: `${json.message}`,
+        text: "Something went wrong. Please try again.",
       });
-    } else {
-      setFormData({
-        promotionName: "",
-        promotionCode: "",
-        description: "",
-        promotionType: "pDiscount",
-        discountPercentage: "",
-        price: "",
-        finalPrice: "",
-        startDate: "",
-        endDate: "",
-        applicableProducts: "apparel",
-        usageLimit: "",
-      });
-
-      Swal.fire({
-        icon: "success",
-        title: "Success",
-        text: "Promotion added successfully",
-      });
-      navigate("/manager/discount-management?tab=discounts");
     }
   };
 
