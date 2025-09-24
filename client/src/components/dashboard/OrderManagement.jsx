@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import axios from "axios";
 import Swal from "sweetalert2";
 import Modal from "react-modal";
 import "react-step-progress-bar/styles.css";
@@ -13,6 +12,7 @@ import { PieChart } from "@mui/x-charts/PieChart";
 import SalesReport from "./SalesReport";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import { init, send } from "emailjs-com";
+import csrfManager from "../../utils/csrfManager";
 
 export default function OrderManagement() {
   const [orders, setOrders] = useState([]);
@@ -63,10 +63,20 @@ export default function OrderManagement() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const data = await axios.get("/api/order/get");
-        setOrders(data.data);
+        // Use regular fetch for GET requests (no CSRF needed)
+        const response = await fetch("/api/order/get", {
+          method: "GET",
+          credentials: "include",
+        });
 
-        const allDates = data.data.map((ord) => ord.createdAt.split("T")[0]);
+        if (!response.ok) {
+          throw new Error("Failed to fetch orders");
+        }
+
+        const data = await response.json();
+        setOrders(data);
+
+        const allDates = data.map((ord) => ord.createdAt.split("T")[0]);
         setDates((prevDates) => [...prevDates, ...allDates]);
         console.log(dates);
       } catch (error) {
@@ -169,9 +179,15 @@ export default function OrderManagement() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const response = await axios.put(`/api/order/status/${id}`, {
+          // Use CSRF-protected API call for status update
+          const response = await csrfManager.put(`/api/order/status/${id}`, {
             status: newStatus,
           });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Failed to update status");
+          }
 
           await send("service_fjpvjh9", "template_1x528d6", {
             to_email: order.customerInfo.email,
@@ -182,7 +198,26 @@ export default function OrderManagement() {
           window.location.reload();
         } catch (error) {
           console.log(error);
-          Swal.fire("Error saving changes", "", "error");
+
+          // Handle specific CSRF errors
+          if (
+            error.message.includes("CSRF") ||
+            error.message.includes("token")
+          ) {
+            Swal.fire(
+              "Security Error",
+              "Session expired. Please refresh the page and try again.",
+              "error"
+            ).then(() => {
+              window.location.reload();
+            });
+          } else {
+            Swal.fire(
+              "Error saving changes",
+              error.message || "Unknown error",
+              "error"
+            );
+          }
         }
       } else if (result.isDenied) {
         Swal.fire("Changes are not saved", "", "info");
