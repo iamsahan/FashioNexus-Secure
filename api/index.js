@@ -18,6 +18,8 @@ import helmet from "helmet"; // used only on the upload endpoint (not global)
 import { veryfyTocken } from "./utils/verifyUser.js";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { veryfyTocken } from "./utils/verifyUser.js";
+import { getCSRFToken } from "./utils/csrfProtection.js";
 
 //dewni
 import inventoryRouter from "./routes/inventory.routs.js";
@@ -47,11 +49,34 @@ app.get("/", (req, res) => {
 
 app.use(express.json());
 app.use(cookieParser());
+// Configure CORS with restricted origins for production
+const allowedOrigins =
+  process.env.NODE_ENV === "production"
+    ? [
+        "https://your-production-domain.com",
+        "https://www.your-production-domain.com",
+      ]
+    : [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+      ];
+
 app.use(
   cors({
-     origin: "*",
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-    credentials: true, 
+    credentials: true,
+    optionsSuccessStatus: 200, // Some legacy browsers choke on 204
   })
 );
 
@@ -147,6 +172,9 @@ app.post(
 const __dirname = dirname(fileURLToPath(import.meta.url)); // Get directory name
 
 app.use("/uploads", express.static(join(__dirname, "uploads")));
+
+// CSRF token endpoint (must be authenticated)
+app.get("/api/csrf-token", veryfyTocken, getCSRFToken);
 
 app.use("/api/auth", authRouter);
 app.use("/api/auth", otpRouter); // /sendotp & /verifyotp

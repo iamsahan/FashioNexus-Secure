@@ -7,14 +7,17 @@ import {
   updateStatus,
   AllOrder,
 } from "../controllers/order.controller.js";
+import { veryfyTocken } from "../utils/verifyUser.js";
+import { validateCSRFToken } from "../utils/csrfProtection.js";
 
 const router = express.Router();
 
-router.post("/add", createOrder);
-router.get("/get/:userId", OrderByUser);
-router.get("/get", AllOrder);
-router.put("/update/:orderId", updateOrder);
-router.put("/status/:id", updateStatus);
-router.delete("/delete/:orderId", deleteOrder);
+// Protected routes with CSRF validation
+router.post("/add", veryfyTocken, validateCSRFToken, createOrder);
+router.get("/get/:userId", veryfyTocken, OrderByUser);
+router.get("/get", veryfyTocken, AllOrder);
+router.put("/update/:orderId", veryfyTocken, validateCSRFToken, updateOrder);
+router.put("/status/:id", veryfyTocken, validateCSRFToken, updateStatus);
+router.delete("/delete/:orderId", veryfyTocken, validateCSRFToken, deleteOrder);
 
 export default router;

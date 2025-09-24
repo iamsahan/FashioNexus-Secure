@@ -48,14 +48,18 @@ export const signin = async (req, res, next) => {
     await user.save();
     const { password: pass, refreshTokens, ...rest } = user._doc;
     res
-      .cookie("refresh_token", refreshToken, {
+      .cookie("access_token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
-        path: "/api/auth/refresh",
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
       })
       .status(200)
-      .json({ user: rest, accessToken, expiresIn: process.env.ACCESS_TOKEN_EXP || "15m" });
+      .json({
+        user: rest,
+        accessToken,
+        expiresIn: process.env.ACCESS_TOKEN_EXP || "15m",
+      });
   } catch (err) {
     next(err);
   }
@@ -63,18 +67,20 @@ export const signin = async (req, res, next) => {
 
 export const google = async (req, res, next) => {
   try {
-    const { idToken } = req.body;
-    if (!idToken) return next(errorHandler(400, "Missing idToken"));
-    if (!admin.apps.length) {
-      return next(errorHandler(500, "Firebase Admin not initialized"));
-    }
-    const decoded = await admin.auth().verifyIdToken(idToken);
-    const email = decoded.email;
-    const name = decoded.name || email.split("@")[0];
-    const photo = decoded.picture;
-
-    let user = await User.findOne({ email });
-    if (!user) {
+    const user = await User.findOne({ email: req.body.email });
+    if (user) {
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+      const { password: pass, ...rest } = user._doc;
+      res
+        .cookie("access_token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        })
+        .status(200)
+        .json(rest);
+    } else {
       const generatedPassword =
         Math.random().toString(36).slice(-8) +
         Math.random().toString(36).slice(-8);
@@ -87,87 +93,31 @@ export const google = async (req, res, next) => {
         avatar: photo,
         usertype: "customer",
       });
+      await newUser.save();
+      const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET);
+      const { password: pass, ...rest } = newUser._doc;
+      res
+        .cookie("access_token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        })
+        .status(200)
+        .json(rest);
     }
-    const accessToken = generateAccessToken(user._id);
-    const { rid, token: refreshToken } = generateRefreshToken();
-    user.refreshTokens = user.refreshTokens || [];
-    user.refreshTokens.push({
-      hash: hashRefreshId(rid),
-      userAgent: req.headers["user-agent"],
-      ip: req.ip,
-    });
-    await user.save();
-    const { password: pass, refreshTokens, ...publicUser } = user._doc;
-    res
-      .cookie("refresh_token", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/api/auth/refresh",
-      })
-      .status(200)
-      .json({ user: publicUser, accessToken, expiresIn: process.env.ACCESS_TOKEN_EXP || "15m" });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
-export const refresh = async (req, res, next) => {
+export const signOut = (req, res, next) => {
   try {
-    const token = req.cookies.refresh_token;
-    if (!token) return next(errorHandler(401, "No refresh token"));
-    let payload;
-    try {
-      payload = verifyRefreshToken(token);
-    } catch (e) {
-      return next(errorHandler(403, "Invalid refresh token"));
-    }
-
-    // Search for user whose hashed rid matches
-    const users = await User.find({ "refreshTokens.hash": { $exists: true } });
-    let matchedUser = null;
-    let matchedIndex = -1;
-    for (const u of users) {
-      for (let i = 0; i < (u.refreshTokens || []).length; i++) {
-        const rt = u.refreshTokens[i];
-        if (bcryptjs.compareSync(payload.rid, rt.hash)) {
-          matchedUser = u;
-          matchedIndex = i;
-          break;
-        }
-      }
-      if (matchedUser) break;
-    }
-    if (!matchedUser) return next(errorHandler(403, "Token revoked"));
-
-    // Rotate
-    matchedUser.refreshTokens.splice(matchedIndex, 1);
-    const accessToken = generateAccessToken(matchedUser._id);
-    const { rid, token: newRefresh } = generateRefreshToken();
-    matchedUser.refreshTokens.push({
-      hash: hashRefreshId(rid),
-      userAgent: req.headers["user-agent"],
-      ip: req.ip,
+    res.clearCookie("access_token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
     });
-    await matchedUser.save();
-    res
-      .cookie("refresh_token", newRefresh, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/api/auth/refresh",
-      })
-      .status(200)
-      .json({ accessToken, expiresIn: process.env.ACCESS_TOKEN_EXP || "15m" });
-  } catch (err) {
-    next(err);
-  }
-};
-
-export const signOut = async (req, res, next) => {
-  try {
-    // Optional: remove refresh token by device (not implemented: needs rid association)
-    res.clearCookie("refresh_token", { path: "/api/auth/refresh" });
     res.status(200).json("User has been signed out!");
   } catch (err) {
     next(err);
