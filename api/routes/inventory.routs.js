@@ -9,6 +9,7 @@ import {
   getInventorieswithOffers,
 } from "../controllers/inventory.controller.js";
 import { authenticate, requireManager } from "../middleware/auth.middleware.js";
+import { validateCSRFToken } from "../utils/csrfProtection.js";
 
 const router = express.Router();
 
@@ -17,9 +18,27 @@ router.get("/all-offers", getInventorieswithOffers);
 router.get("/search/get", getInventorySearch);
 router.get("/:id", getInventory);
 
-// Admin routes - only managers can manage inventory
-router.post("/add", authenticate, requireManager, createInventory);
-router.delete("/:id", authenticate, requireManager, deleteInventory);
-router.patch("/:id", authenticate, requireManager, updateInventory);
+// Admin routes - only managers can manage inventory (with CSRF protection)
+router.post(
+  "/add",
+  authenticate,
+  requireManager,
+  validateCSRFToken,
+  createInventory
+);
+router.delete(
+  "/:id",
+  authenticate,
+  requireManager,
+  validateCSRFToken,
+  deleteInventory
+);
+router.patch(
+  "/:id",
+  authenticate,
+  requireManager,
+  validateCSRFToken,
+  updateInventory
+);
 
 export default router;
