@@ -57,7 +57,7 @@ export const sendOTP = async (req, res) => {
       if (existing.blockedUntil && existing.blockedUntil > now) {
         return res.status(429).json({
           success: false,
-            message: "Too many attempts. Please try again later.",
+          message: "Too many attempts. Please try again later.",
         });
       }
       // Cooldown to avoid spamming email resend
@@ -169,9 +169,7 @@ export const verifyOTP = async (req, res) => {
     if (!match) {
       record.attempts += 1;
       if (record.attempts >= OTP_MAX_ATTEMPTS) {
-        record.blockedUntil = new Date(
-          Date.now() + OTP_BLOCK_MIN * 60 * 1000
-        );
+        record.blockedUntil = new Date(Date.now() + OTP_BLOCK_MIN * 60 * 1000);
       }
       await record.save();
       return res
