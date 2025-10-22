@@ -114,12 +114,12 @@ const SECURITY_PATTERNS = {
       },
     ],
   },
-  'Insecure File Upload': {
-    severity: 'CRITICAL',
+  "Insecure File Upload": {
+    severity: "CRITICAL",
     patterns: [
       {
         regex: /Date\.now\s*\(\s*\)\s*\+.*extname(?!.*crypto\.randomBytes)/gi,
-        message: 'Filename generation using only timestamp - predictable'
+        message: "Filename generation using only timestamp - predictable",
       },
       {
         // Check for file.originalname usage but exclude secure patterns
@@ -127,19 +127,24 @@ const SECURITY_PATTERNS = {
           // Look for file.originalname usage
           const originalNameUsage = /file\.originalname/gi.test(content);
           if (!originalNameUsage) return false;
-          
+
           // Check if it's used securely (only for extension extraction with crypto.randomBytes)
-          const hasSecurePattern = /const\s+\w+\s*=\s*path\.extname\s*\(\s*file\.originalname\s*\)[\s\S]*crypto\.randomBytes/gi.test(content);
-          const hasFileFilter = /const\s+fileFilter\s*=/.test(content) || /fileFilter\s*:/gi.test(content);
+          const hasSecurePattern =
+            /const\s+\w+\s*=\s*path\.extname\s*\(\s*file\.originalname\s*\)[\s\S]*crypto\.randomBytes/gi.test(
+              content
+            );
+          const hasFileFilter =
+            /const\s+fileFilter\s*=/.test(content) ||
+            /fileFilter\s*:/gi.test(content);
           const hasMimeValidation = /file\.mimetype/.test(content);
-          
+
           // If using originalname securely (only for extension) with crypto randomBytes and proper validation, it's secure
           return !(hasSecurePattern && hasFileFilter && hasMimeValidation);
         },
-        message: 'Using original filename - potential path traversal risk',
-        fileLevel: true
-      }
-    ]
+        message: "Using original filename - potential path traversal risk",
+        fileLevel: true,
+      },
+    ],
   },
   "Missing Security Headers": {
     severity: "MEDIUM",
@@ -165,8 +170,8 @@ const SECURITY_PATTERNS = {
       },
     ],
   },
-  'Missing CSRF Protection': {
-    severity: 'HIGH',
+  "Missing CSRF Protection": {
+    severity: "HIGH",
     patterns: [
       {
         // Check for cookie-based auth without proper CSRF protection
@@ -175,21 +180,24 @@ const SECURITY_PATTERNS = {
           const cookiePattern = /\.cookie\s*\(\s*["']access_token["']/gi;
           const hasCookieAuth = cookiePattern.test(content);
           if (!hasCookieAuth) return false;
-          
+
           // Check if it's an authentication file (where CSRF tokens can't exist yet)
           const isAuthFile = /auth/gi.test(filePath);
           if (isAuthFile) {
             // For auth files, check if using sameSite strict (provides CSRF protection)
-            const hasSameSiteStrict = /sameSite\s*:\s*["']strict["']/gi.test(content);
+            const hasSameSiteStrict = /sameSite\s*:\s*["']strict["']/gi.test(
+              content
+            );
             return !hasSameSiteStrict; // Only flag if missing sameSite strict
           }
-          
+
           // For non-auth files, check for CSRF token validation
-          const hasCSRFValidation = /csrf.*token/gi.test(content) || /verifyCSRF/gi.test(content);
+          const hasCSRFValidation =
+            /csrf.*token/gi.test(content) || /verifyCSRF/gi.test(content);
           return !hasCSRFValidation;
         },
-        message: 'Cookie-based authentication without CSRF protection',
-        fileLevel: true
+        message: "Cookie-based authentication without CSRF protection",
+        fileLevel: true,
       },
       {
         regex: /\.cookie\s*\([^)]*\)\s*(?!.*sameSite|.*secure)/gi,
