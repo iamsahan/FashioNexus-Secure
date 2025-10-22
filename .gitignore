@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Security reports (auto-generated)
+security-report.json
+security-report.html
+SECURITY_REPORT.md
