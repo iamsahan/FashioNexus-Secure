@@ -1,6 +1,7 @@
 import Inventory from "../models/inventory.model.js";
 import mongoose from "mongoose";
 import Joi from "joi"; // for validation
+import { safeParseInt, sanitizeSearchQuery } from "../utils/security.js";
 
 // ------------------- Validation Schemas -------------------
 const inventorySchema = Joi.object({
@@ -113,8 +114,9 @@ export const updateInventory = async (req, res) => {
 
 export const getInventorySearch = async (req, res, next) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 10, 50); // hard cap
-    const startIndex = parseInt(req.query.startIndex) || 0;
+    // Safe input validation with hard caps
+    const limit = safeParseInt(req.query.limit, 10, 1, 50);
+    const startIndex = safeParseInt(req.query.startIndex, 0, 0, 10000);
 
     // validate category
     let Category = req.query.category;

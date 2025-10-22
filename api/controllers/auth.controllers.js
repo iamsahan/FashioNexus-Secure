@@ -3,6 +3,7 @@ import bcryptjs from "bcryptjs";
 import { errorHandler } from "../utils/error.js";
 import jwt from "jsonwebtoken";
 import admin from "../utils/firebaseAdmin.js";
+import { validateEmail } from "../utils/security.js";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -31,7 +32,13 @@ export const signup = async (req, res, next) => {
 export const signin = async (req, res, next) => {
   const { email, password } = req.body;
   try {
-    const user = await User.findOne({ email: email.toLowerCase() });
+    // Validate email format
+    const sanitizedEmail = validateEmail(email);
+    if (!sanitizedEmail) {
+      return next(errorHandler(400, "Valid email is required"));
+    }
+
+    const user = await User.findOne({ email: sanitizedEmail });
     if (!user) return next(errorHandler(404, "User not found"));
     const validPassword = bcryptjs.compareSync(password, user.password);
     if (!validPassword)
@@ -67,7 +74,20 @@ export const signin = async (req, res, next) => {
 
 export const google = async (req, res, next) => {
   try {
-    const user = await User.findOne({ email: req.body.email });
+    // Input validation for email
+    const { email } = req.body;
+    if (
+      !email ||
+      typeof email !== "string" ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    ) {
+      return next(errorHandler(400, "Valid email is required"));
+    }
+
+    // Sanitize email to prevent NoSQL injection
+    const sanitizedEmail = email.toLowerCase().trim();
+
+    const user = await User.findOne({ email: sanitizedEmail });
     if (user) {
       const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
       const { password: pass, ...rest } = user._doc;

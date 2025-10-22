@@ -14,12 +14,13 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
-import helmet from "helmet"; // used only on the upload endpoint (not global)
+import helmet from "helmet";
 import { veryfyTocken } from "./utils/verifyUser.js";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { authenticate } from "./middleware/auth.middleware.js";
 import { getCSRFToken } from "./utils/csrfProtection.js";
+import helmet from "helmet";
 
 //dewni
 import inventoryRouter from "./routes/inventory.routs.js";
@@ -40,6 +41,21 @@ mongoose
   });
 
 const app = express();
+
+// Security headers with helmet
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", "https:"],
+      },
+    },
+    crossOriginEmbedderPolicy: false, // Adjust based on your needs
+  })
+);
 
 //
 app.get("/", (req, res) => {

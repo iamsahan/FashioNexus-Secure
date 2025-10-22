@@ -1,7 +1,11 @@
 import User from "../models/user.model.js";
 import { errorHandler } from "../utils/error.js";
 import bcryptjs from "bcryptjs";
-
+import {
+  safeParseInt,
+  sanitizeSearchQuery,
+  validateEmail,
+} from "../utils/security.js";
 import mongoose from "mongoose";
 
 export const test = (req, res) => {
@@ -18,6 +22,15 @@ export const updateUser = async (req, res, next) => {
       req.body.password = bcryptjs.hashSync(req.body.password, 10);
     }
 
+    // Validate email if provided
+    let sanitizedEmail = req.body.email;
+    if (sanitizedEmail) {
+      sanitizedEmail = validateEmail(sanitizedEmail);
+      if (!sanitizedEmail) {
+        return next(errorHandler(400, "Invalid email format"));
+      }
+    }
+
     const updateUser = await User.findByIdAndUpdate(
       req.user.id,
       {
@@ -25,7 +38,7 @@ export const updateUser = async (req, res, next) => {
           firstname: req.body.firstname,
           lastname: req.body.lastname,
           username: req.body.username,
-          email: req.body.email,
+          email: sanitizedEmail,
           country: req.body.country,
           password: req.body.password,
           avatar: req.body.avatar,
@@ -66,16 +79,21 @@ export const getUser = async (req, res, next) => {
   }
 };
 
+import { safeParseInt, sanitizeSearchQuery } from "../utils/security.js";
+
 export const getUserSearch = async (req, res, next) => {
   try {
-    const limit = parseInt(req.query.limit) || 50;
-    const startIndex = parseInt(req.query.startIndex) || 0;
+    // Safe input validation
+    const limit = safeParseInt(req.query.limit, 50, 1, 100);
+    const startIndex = safeParseInt(req.query.startIndex, 0, 0, 10000);
 
     let usertype = req.query.type;
     if (usertype === undefined || usertype === "all") {
       usertype = { $in: ["Travel Service Providers", "Tourist", "Admin"] };
     }
-    const searchTerm = req.query.searchTerm || "";
+
+    // Sanitize search term to prevent NoSQL injection
+    const searchTerm = sanitizeSearchQuery(req.query.searchTerm || "");
     const sort = req.query.sort || "createdAt";
     const order = req.query.order || "desc";
 

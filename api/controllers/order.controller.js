@@ -1,5 +1,6 @@
 import Order from "../models/order.model.js";
 import { v4 as uuidv4 } from "uuid";
+import { isValidObjectId } from "../utils/security.js";
 
 // Helper function to sanitize order data before sending response
 const sanitizeOrder = (order) => {
@@ -69,7 +70,13 @@ export const createOrder = async (req, res) => {
 // Fetch orders by userId
 export const OrderByUser = async (req, res) => {
   try {
-    const orders = await Order.find({ userId: req.params.userId }).select(
+    // Validate userId parameter
+    const { userId } = req.params;
+    if (!isValidObjectId(userId)) {
+      return res.status(400).json({ message: "Invalid user ID format" });
+    }
+
+    const orders = await Order.find({ userId }).select(
       "-cardInfo" // exclude entire cardInfo object to protect sensitive information
     );
     res.json(orders);

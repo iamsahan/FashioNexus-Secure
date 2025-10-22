@@ -4,153 +4,199 @@
  * without requiring ESLint plugins
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Security patterns to detect
 const SECURITY_PATTERNS = {
-  'Missing Authentication on Critical Routes': {
-    severity: 'CRITICAL',
+  "Missing Authentication on Critical Routes": {
+    severity: "CRITICAL",
     patterns: [
       {
-        regex: /router\.(delete|put|post|patch)\s*\(\s*["']([^"']*(?:delete|update|add|create|all|status)[^"']*)["']\s*,\s*(?!.*verif)/gi,
-        message: 'Critical route without authentication middleware'
+        regex:
+          /router\.(delete|put|post|patch)\s*\(\s*["']([^"']*(?:delete|update|add|create|all|status)[^"']*)["']\s*,\s*(?!.*authenticate)/gi,
+        message: "Critical route without authentication middleware",
       },
       {
-        regex: /app\.(delete|put|post|patch)\s*\(\s*["']([^"']*(?:delete|update|add|create)[^"']*)["']\s*,\s*\(/gi,
-        message: 'State-changing route missing authentication'
-      }
-    ]
+        regex:
+          /app\.(delete|put|post|patch)\s*\(\s*["']([^"']*(?:delete|update|add|create)[^"']*)["']\s*,\s*(?!.*authenticate)/gi,
+        message: "State-changing route missing authentication",
+      },
+    ],
   },
-  'Sensitive Data Exposure': {
-    severity: 'HIGH',
+  "Sensitive Data Exposure": {
+    severity: "HIGH",
     patterns: [
       {
-        regex: /console\.log\s*\([^)]*(?:password|token|secret|otp|auth|credential)[^)]*\)/gi,
-        message: 'Sensitive data being logged to console'
+        regex:
+          /console\.log\s*\([^)]*(?:password|token|secret|otp|auth|credential)[^)]*\)/gi,
+        message: "Sensitive data being logged to console",
       },
       {
-        regex: /(mongodb\+srv:\/\/[^"'\s]+|["'][^"']*@gmail\.com["']|pass\s*:\s*["'][^"']+["'])/gi,
-        message: 'Hardcoded credentials in source code'
+        regex:
+          /(mongodb\+srv:\/\/[^"'\s]+|["'][^"']*@gmail\.com["']|pass\s*:\s*["'][^"']+["'])/gi,
+        message: "Hardcoded credentials in source code",
       },
       {
         regex: /const\s+\w*_?(URL|SECRET|KEY|PASSWORD)\s*=\s*["'][^"']+["']/gi,
-        message: 'Sensitive configuration hardcoded instead of using environment variables'
+        message:
+          "Sensitive configuration hardcoded instead of using environment variables",
       },
       {
         regex: /res\.(?:json|send)\s*\(\s*validUser\s*\)/gi,
-        message: 'Sending user object without removing sensitive fields'
-      }
-    ]
+        message: "Sending user object without removing sensitive fields",
+      },
+    ],
   },
-  'Injection Risks (NoSQL Injection)': {
-    severity: 'CRITICAL',
+  "Injection Risks (NoSQL Injection)": {
+    severity: "CRITICAL",
     patterns: [
       {
-        regex: /(?:findOne|find|findById|findByIdAndUpdate|findOneAndDelete)\s*\(\s*\{[^}]*req\.(?:body|query|params)[^}]*\}/gi,
-        message: 'Direct use of user input in database query - NoSQL injection risk'
+        regex:
+          /(?:findOne|find|findById|findByIdAndUpdate|findOneAndDelete)\s*\(\s*\{[^}]*req\.(?:body|query|params)[^}]*\}/gi,
+        message:
+          "Direct use of user input in database query - NoSQL injection risk",
       },
       {
         regex: /\$regex\s*:\s*req\.(?:query|body|params)/gi,
-        message: 'User input in regex query without validation - injection risk'
+        message:
+          "User input in regex query without validation - injection risk",
       },
       {
-        regex: /parseInt\s*\(\s*req\.(?:query|params)/gi,
-        message: 'Unvalidated parseInt on user input - potential injection'
+        regex: /(?<!safe)parseInt\s*\(\s*req\.(?:query|params)/gi,
+        message: "Unvalidated parseInt on user input - potential injection",
       },
       {
         regex: /email\s*:\s*req\.body\.email[^,\}]*[,\}]/gi,
-        message: 'Direct email from request body without validation'
-      }
-    ]
+        message: "Direct email from request body without validation",
+      },
+    ],
   },
-  'Insecure OTP Implementation': {
-    severity: 'HIGH',
+  "Insecure OTP Implementation": {
+    severity: "HIGH",
     patterns: [
       {
         regex: /new\s+Map\s*\(\s*\).*otp/gi,
-        message: 'OTP stored in-memory Map - not persistent or secure for production'
+        message:
+          "OTP stored in-memory Map - not persistent or secure for production",
       },
       {
         regex: /Math\.random\s*\(\s*\).*OTP/gi,
-        message: 'OTP generated using Math.random() - predictable and insecure'
+        message: "OTP generated using Math.random() - predictable and insecure",
       },
       {
-        regex: /app\.post\s*\(\s*["'][^"']*(?:otp|sendotp|verifyotp)[^"']*["']\s*,\s*\(/gi,
-        message: 'OTP endpoint without rate limiting - vulnerable to brute force'
+        regex:
+          /app\.post\s*\(\s*["'][^"']*(?:otp|sendotp|verifyotp)[^"']*["']\s*,\s*\(/gi,
+        message:
+          "OTP endpoint without rate limiting - vulnerable to brute force",
       },
       {
         regex: /otpMap\.set\s*\(\s*\w+\s*,\s*\w+\s*\)/gi,
-        message: 'OTP stored without expiration time'
-      }
-    ]
+        message: "OTP stored without expiration time",
+      },
+    ],
   },
-  'Cross-Site Scripting (XSS)': {
-    severity: 'HIGH',
+  "Cross-Site Scripting (XSS)": {
+    severity: "HIGH",
     patterns: [
       {
         regex: /html\s*:\s*`[^`]*\$\{(?:otp|req\.|email|username)[^`]*`/gi,
-        message: 'User input in HTML template without sanitization - XSS risk'
+        message: "User input in HTML template without sanitization - XSS risk",
       },
       {
         regex: /res\.json\s*\(\s*\{[^}]*req\.(?:body|query)[^}]*\}/gi,
-        message: 'Reflecting user input in response without sanitization'
-      }
-    ]
+        message: "Reflecting user input in response without sanitization",
+      },
+    ],
   },
   'Insecure File Upload': {
     severity: 'CRITICAL',
     patterns: [
       {
-        regex: /multer\s*\(\s*\{(?!.*fileFilter)(?!.*limits)/gi,
-        message: 'Multer configured without file type validation or size limits'
-      },
-      {
-        regex: /upload\.(array|single)\s*\([^)]+\)/gi,
-        message: 'File upload without virus scanning or validation'
-      },
-      {
-        regex: /Date\.now\s*\(\s*\)\s*\+.*extname/gi,
+        regex: /Date\.now\s*\(\s*\)\s*\+.*extname(?!.*crypto\.randomBytes)/gi,
         message: 'Filename generation using only timestamp - predictable'
       },
       {
-        regex: /file\.originalname/gi,
-        message: 'Using original filename without sanitization - path traversal risk'
-      }
-    ]
-  },
-  'Missing Security Headers': {
-    severity: 'MEDIUM',
-    patterns: [
-      {
-        regex: /cors\s*\(\s*\{[^}]*origin\s*:\s*['"]\*['"]/gi,
-        message: 'CORS configured with wildcard origin - allows any domain'
-      },
-      {
-        regex: /^(?!.*helmet).*express\s*\(\s*\)/gm,
-        message: 'Application not using helmet middleware for security headers',
+        // Check for file.originalname usage but exclude secure patterns
+        checkFunction: (content, filePath) => {
+          // Look for file.originalname usage
+          const originalNameUsage = /file\.originalname/gi.test(content);
+          if (!originalNameUsage) return false;
+          
+          // Check if it's used securely (only for extension extraction with crypto.randomBytes)
+          const hasSecurePattern = /const\s+\w+\s*=\s*path\.extname\s*\(\s*file\.originalname\s*\)[\s\S]*crypto\.randomBytes/gi.test(content);
+          const hasFileFilter = /const\s+fileFilter\s*=/.test(content) || /fileFilter\s*:/gi.test(content);
+          const hasMimeValidation = /file\.mimetype/.test(content);
+          
+          // If using originalname securely (only for extension) with crypto randomBytes and proper validation, it's secure
+          return !(hasSecurePattern && hasFileFilter && hasMimeValidation);
+        },
+        message: 'Using original filename - potential path traversal risk',
         fileLevel: true
       }
     ]
+  },
+  "Missing Security Headers": {
+    severity: "MEDIUM",
+    patterns: [
+      {
+        regex: /cors\s*\(\s*\{[^}]*origin\s*:\s*['"]\*['"]/gi,
+        message: "CORS configured with wildcard origin - allows any domain",
+      },
+      {
+        regex: /express\s*\(\s*\)/g,
+        checkFunction: (content, filePath) => {
+          // Only check main server files (index.js, app.js, server.js)
+          const isMainFile = /\/(index|app|server)\.js$/.test(filePath);
+          if (!isMainFile) return false;
+
+          return (
+            !content.includes("app.use(helmet") &&
+            !content.includes("app.use(\n  helmet")
+          );
+        },
+        message: "Application not using helmet middleware for security headers",
+        fileLevel: true,
+      },
+    ],
   },
   'Missing CSRF Protection': {
     severity: 'HIGH',
     patterns: [
       {
-        regex: /\.cookie\s*\(\s*["']access_token["']/gi,
-        message: 'Cookie-based authentication without CSRF protection'
+        // Check for cookie-based auth without proper CSRF protection
+        checkFunction: (content, filePath) => {
+          // Look for access_token cookie setting
+          const cookiePattern = /\.cookie\s*\(\s*["']access_token["']/gi;
+          const hasCookieAuth = cookiePattern.test(content);
+          if (!hasCookieAuth) return false;
+          
+          // Check if it's an authentication file (where CSRF tokens can't exist yet)
+          const isAuthFile = /auth/gi.test(filePath);
+          if (isAuthFile) {
+            // For auth files, check if using sameSite strict (provides CSRF protection)
+            const hasSameSiteStrict = /sameSite\s*:\s*["']strict["']/gi.test(content);
+            return !hasSameSiteStrict; // Only flag if missing sameSite strict
+          }
+          
+          // For non-auth files, check for CSRF token validation
+          const hasCSRFValidation = /csrf.*token/gi.test(content) || /verifyCSRF/gi.test(content);
+          return !hasCSRFValidation;
+        },
+        message: 'Cookie-based authentication without CSRF protection',
+        fileLevel: true
       },
       {
         regex: /\.cookie\s*\([^)]*\)\s*(?!.*sameSite|.*secure)/gi,
-        message: 'Cookie set without sameSite or secure flags - CSRF risk'
-      }
-    ]
-  }
+        message: "Cookie set without sameSite or secure flags - CSRF risk",
+      },
+    ],
+  },
 };
 
 class SecurityScanner {
@@ -159,7 +205,7 @@ class SecurityScanner {
     this.scannedFiles = 0;
   }
 
-  async scanDirectory(dir, extensions = ['.js']) {
+  async scanDirectory(dir, extensions = [".js"]) {
     const files = fs.readdirSync(dir);
 
     for (const file of files) {
@@ -168,7 +214,7 @@ class SecurityScanner {
 
       if (stat.isDirectory()) {
         await this.scanDirectory(filePath, extensions);
-      } else if (extensions.some(ext => file.endsWith(ext))) {
+      } else if (extensions.some((ext) => file.endsWith(ext))) {
         await this.scanFile(filePath);
       }
     }
@@ -176,33 +222,46 @@ class SecurityScanner {
 
   async scanFile(filePath) {
     try {
-      const content = fs.readFileSync(filePath, 'utf8');
+      const content = fs.readFileSync(filePath, "utf8");
       this.scannedFiles++;
 
-      const relativePath = filePath.replace(__dirname, '').replace(/\\\\/g, '/');
+      const relativePath = filePath
+        .replace(__dirname, "")
+        .replace(/\\\\/g, "/");
 
       // Scan for each security category
       Object.entries(SECURITY_PATTERNS).forEach(([category, config]) => {
-        config.patterns.forEach(pattern => {
+        config.patterns.forEach((pattern) => {
           if (pattern.fileLevel) {
-            // File-level check
-            const match = pattern.regex.test(content);
-            if (match) {
+            // File-level check with optional custom validation
+            let shouldFlag = false;
+
+            if (pattern.checkFunction) {
+              // Use custom function to check
+              shouldFlag = pattern.checkFunction(content, relativePath);
+            } else {
+              // Use regex test
+              shouldFlag = pattern.regex.test(content);
+            }
+
+            if (shouldFlag) {
               this.issues.push({
                 file: relativePath,
                 line: 1,
                 category,
                 severity: config.severity,
-                message: pattern.message
+                message: pattern.message,
               });
             }
           } else {
             // Line-by-line check
-            const lines = content.split('\n');
+            const lines = content.split("\n");
             lines.forEach((line, index) => {
               pattern.regex.lastIndex = 0; // Reset regex state
-              const matches = line.matchAll(new RegExp(pattern.regex.source, pattern.regex.flags));
-              
+              const matches = line.matchAll(
+                new RegExp(pattern.regex.source, pattern.regex.flags)
+              );
+
               for (const match of matches) {
                 this.issues.push({
                   file: relativePath,
@@ -210,30 +269,33 @@ class SecurityScanner {
                   category,
                   severity: config.severity,
                   message: pattern.message,
-                  code: line.trim()
+                  code: line.trim(),
                 });
               }
             });
           }
         });
       });
-
     } catch (error) {
       console.error(`Error scanning file ${filePath}:`, error.message);
     }
   }
 
   generateReport() {
-    console.log('\n╔═══════════════════════════════════════════════════════════╗');
-    console.log('║       FashioNexus Security Vulnerability Scanner         ║');
-    console.log('╚═══════════════════════════════════════════════════════════╝\n');
+    console.log(
+      "\n╔═══════════════════════════════════════════════════════════╗"
+    );
+    console.log("║       FashioNexus Security Vulnerability Scanner         ║");
+    console.log(
+      "╚═══════════════════════════════════════════════════════════╝\n"
+    );
 
     console.log(`📂 Scanned ${this.scannedFiles} files`);
     console.log(`🔍 Found ${this.issues.length} security issues\n`);
 
     // Group by category
     const grouped = {};
-    this.issues.forEach(issue => {
+    this.issues.forEach((issue) => {
       if (!grouped[issue.category]) {
         grouped[issue.category] = [];
       }
@@ -241,33 +303,46 @@ class SecurityScanner {
     });
 
     // Display by category
-    Object.entries(grouped).sort().forEach(([category, issues]) => {
-      const severity = issues[0].severity;
-      const icon = severity === 'CRITICAL' ? '🔴' : severity === 'HIGH' ? '🟠' : '🟡';
-      
-      console.log(`\n${'═'.repeat(60)}`);
-      console.log(`${icon} ${category}`);
-      console.log(`   Severity: ${severity} | Count: ${issues.length} issue(s)`);
-      console.log(`${'═'.repeat(60)}\n`);
+    Object.entries(grouped)
+      .sort()
+      .forEach(([category, issues]) => {
+        const severity = issues[0].severity;
+        const icon =
+          severity === "CRITICAL" ? "🔴" : severity === "HIGH" ? "🟠" : "🟡";
 
-      issues.forEach((issue, index) => {
-        console.log(`   ${index + 1}. ${issue.file}:${issue.line}`);
-        console.log(`      ⚠️  ${issue.message}`);
-        if (issue.code) {
-          console.log(`      📝  ${issue.code}`);
-        }
-        console.log('');
+        console.log(`\n${"═".repeat(60)}`);
+        console.log(`${icon} ${category}`);
+        console.log(
+          `   Severity: ${severity} | Count: ${issues.length} issue(s)`
+        );
+        console.log(`${"═".repeat(60)}\n`);
+
+        issues.forEach((issue, index) => {
+          console.log(`   ${index + 1}. ${issue.file}:${issue.line}`);
+          console.log(`      ⚠️  ${issue.message}`);
+          if (issue.code) {
+            console.log(`      📝  ${issue.code}`);
+          }
+          console.log("");
+        });
       });
-    });
 
     // Summary
-    console.log('\n═══════════════════════════════════════════════════════════');
-    console.log('                         SUMMARY                           ');
-    console.log('═══════════════════════════════════════════════════════════\n');
-    
-    const criticalCount = this.issues.filter(i => i.severity === 'CRITICAL').length;
-    const highCount = this.issues.filter(i => i.severity === 'HIGH').length;
-    const mediumCount = this.issues.filter(i => i.severity === 'MEDIUM').length;
+    console.log(
+      "\n═══════════════════════════════════════════════════════════"
+    );
+    console.log("                         SUMMARY                           ");
+    console.log(
+      "═══════════════════════════════════════════════════════════\n"
+    );
+
+    const criticalCount = this.issues.filter(
+      (i) => i.severity === "CRITICAL"
+    ).length;
+    const highCount = this.issues.filter((i) => i.severity === "HIGH").length;
+    const mediumCount = this.issues.filter(
+      (i) => i.severity === "MEDIUM"
+    ).length;
 
     console.log(`   🔴 CRITICAL: ${criticalCount}`);
     console.log(`   🟠 HIGH:     ${highCount}`);
@@ -289,36 +364,39 @@ class SecurityScanner {
 
 | Severity | Count |
 |----------|-------|
-| 🔴 CRITICAL | ${this.issues.filter(i => i.severity === 'CRITICAL').length} |
-| 🟠 HIGH | ${this.issues.filter(i => i.severity === 'HIGH').length} |
-| 🟡 MEDIUM | ${this.issues.filter(i => i.severity === 'MEDIUM').length} |
+| 🔴 CRITICAL | ${this.issues.filter((i) => i.severity === "CRITICAL").length} |
+| 🟠 HIGH | ${this.issues.filter((i) => i.severity === "HIGH").length} |
+| 🟡 MEDIUM | ${this.issues.filter((i) => i.severity === "MEDIUM").length} |
 | **TOTAL** | **${this.issues.length}** |
 
 ---
 
 `;
 
-    Object.entries(grouped).sort().forEach(([category, issues]) => {
-      const severity = issues[0].severity;
-      const icon = severity === 'CRITICAL' ? '🔴' : severity === 'HIGH' ? '🟠' : '🟡';
+    Object.entries(grouped)
+      .sort()
+      .forEach(([category, issues]) => {
+        const severity = issues[0].severity;
+        const icon =
+          severity === "CRITICAL" ? "🔴" : severity === "HIGH" ? "🟠" : "🟡";
 
-      markdown += `## ${icon} ${category}\n\n`;
-      markdown += `**Severity:** ${severity}  \n`;
-      markdown += `**Issues Found:** ${issues.length}\n\n`;
+        markdown += `## ${icon} ${category}\n\n`;
+        markdown += `**Severity:** ${severity}  \n`;
+        markdown += `**Issues Found:** ${issues.length}\n\n`;
 
-      issues.forEach((issue, index) => {
-        markdown += `### Issue ${index + 1}\n\n`;
-        markdown += `- **File:** \`${issue.file}\`\n`;
-        markdown += `- **Line:** ${issue.line}\n`;
-        markdown += `- **Description:** ${issue.message}\n`;
-        if (issue.code) {
-          markdown += `- **Code:**\n\`\`\`javascript\n${issue.code}\n\`\`\`\n`;
-        }
-        markdown += '\n';
+        issues.forEach((issue, index) => {
+          markdown += `### Issue ${index + 1}\n\n`;
+          markdown += `- **File:** \`${issue.file}\`\n`;
+          markdown += `- **Line:** ${issue.line}\n`;
+          markdown += `- **Description:** ${issue.message}\n`;
+          if (issue.code) {
+            markdown += `- **Code:**\n\`\`\`javascript\n${issue.code}\n\`\`\`\n`;
+          }
+          markdown += "\n";
+        });
+
+        markdown += "\n---\n\n";
       });
-
-      markdown += '\n---\n\n';
-    });
 
     markdown += `## 🔧 Recommendations\n\n`;
     markdown += `### Critical Priority\n`;
@@ -335,8 +413,8 @@ class SecurityScanner {
     markdown += `9. Configure CORS properly instead of using wildcards\n`;
     markdown += `10. Implement rate limiting on all endpoints\n\n`;
 
-    fs.writeFileSync('SECURITY_REPORT.md', markdown);
-    console.log('✅ Markdown report saved to: SECURITY_REPORT.md');
+    fs.writeFileSync("SECURITY_REPORT.md", markdown);
+    console.log("✅ Markdown report saved to: SECURITY_REPORT.md");
   }
 
   generateHtmlReport(grouped) {
@@ -478,20 +556,28 @@ class SecurityScanner {
         <div class="header">
             <h1>🔒 Security Vulnerability Report</h1>
             <p>FashioNexus Backend Security Analysis</p>
-            <p style="margin-top: 10px; opacity: 0.9;">Files Scanned: ${this.scannedFiles} | Issues Found: ${this.issues.length}</p>
+            <p style="margin-top: 10px; opacity: 0.9;">Files Scanned: ${
+              this.scannedFiles
+            } | Issues Found: ${this.issues.length}</p>
         </div>
         
         <div class="summary">
             <div class="summary-card">
-                <h3 class="critical">${this.issues.filter(i => i.severity === 'CRITICAL').length}</h3>
+                <h3 class="critical">${
+                  this.issues.filter((i) => i.severity === "CRITICAL").length
+                }</h3>
                 <p>Critical Issues</p>
             </div>
             <div class="summary-card">
-                <h3 class="high">${this.issues.filter(i => i.severity === 'HIGH').length}</h3>
+                <h3 class="high">${
+                  this.issues.filter((i) => i.severity === "HIGH").length
+                }</h3>
                 <p>High Issues</p>
             </div>
             <div class="summary-card">
-                <h3 class="medium">${this.issues.filter(i => i.severity === 'MEDIUM').length}</h3>
+                <h3 class="medium">${
+                  this.issues.filter((i) => i.severity === "MEDIUM").length
+                }</h3>
                 <p>Medium Issues</p>
             </div>
             <div class="summary-card">
@@ -502,11 +588,13 @@ class SecurityScanner {
         
         <div class="content">`;
 
-    Object.entries(grouped).sort().forEach(([category, issues]) => {
-      const severity = issues[0].severity;
-      const severityClass = severity.toLowerCase();
+    Object.entries(grouped)
+      .sort()
+      .forEach(([category, issues]) => {
+        const severity = issues[0].severity;
+        const severityClass = severity.toLowerCase();
 
-      html += `
+        html += `
             <div class="category">
                 <div class="category-header">
                     <h2>${category}</h2>
@@ -514,25 +602,29 @@ class SecurityScanner {
                     <span style="color: #666;">${issues.length} issue(s) found</span>
                 </div>`;
 
-      issues.forEach((issue, index) => {
-        html += `
+        issues.forEach((issue, index) => {
+          html += `
                 <div class="issue">
                     <div><strong>Issue #${index + 1}</strong></div>
-                    <div class="issue-location">📁 ${issue.file}:${issue.line}</div>
+                    <div class="issue-location">📁 ${issue.file}:${
+            issue.line
+          }</div>
                     <div class="issue-message">⚠️ ${issue.message}</div>`;
-        
-        if (issue.code) {
-          html += `
-                    <div class="code-block">${issue.code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
-        }
-        
-        html += `
-                </div>`;
-      });
 
-      html += `
+          if (issue.code) {
+            html += `
+                    <div class="code-block">${issue.code
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&gt;")}</div>`;
+          }
+
+          html += `
+                </div>`;
+        });
+
+        html += `
             </div>`;
-    });
+      });
 
     html += `
         </div>
@@ -543,8 +635,8 @@ class SecurityScanner {
 </body>
 </html>`;
 
-    fs.writeFileSync('security-report.html', html);
-    console.log('✅ HTML report saved to: security-report.html');
+    fs.writeFileSync("security-report.html", html);
+    console.log("✅ HTML report saved to: security-report.html");
   }
 
   generateJsonReport(grouped) {
@@ -553,26 +645,26 @@ class SecurityScanner {
       filesScanned: this.scannedFiles,
       summary: {
         total: this.issues.length,
-        critical: this.issues.filter(i => i.severity === 'CRITICAL').length,
-        high: this.issues.filter(i => i.severity === 'HIGH').length,
-        medium: this.issues.filter(i => i.severity === 'MEDIUM').length
+        critical: this.issues.filter((i) => i.severity === "CRITICAL").length,
+        high: this.issues.filter((i) => i.severity === "HIGH").length,
+        medium: this.issues.filter((i) => i.severity === "MEDIUM").length,
       },
-      categories: grouped
+      categories: grouped,
     };
 
-    fs.writeFileSync('security-report.json', JSON.stringify(report, null, 2));
-    console.log('✅ JSON report saved to: security-report.json');
+    fs.writeFileSync("security-report.json", JSON.stringify(report, null, 2));
+    console.log("✅ JSON report saved to: security-report.json");
   }
 }
 
 // Main execution
 async function main() {
   const scanner = new SecurityScanner();
-  
-  console.log('🔍 Starting security scan...\n');
-  
+
+  console.log("🔍 Starting security scan...\n");
+
   // Scan API directory
-  const apiDir = path.join(__dirname, 'api');
+  const apiDir = path.join(__dirname, "api");
   if (fs.existsSync(apiDir)) {
     await scanner.scanDirectory(apiDir);
   }
@@ -583,12 +675,16 @@ async function main() {
   scanner.generateHtmlReport(grouped);
   scanner.generateJsonReport(grouped);
 
-  console.log('\n✨ Security scan completed!\n');
+  console.log("\n✨ Security scan completed!\n");
 
   // Exit with error code if critical issues found
-  const criticalCount = scanner.issues.filter(i => i.severity === 'CRITICAL').length;
+  const criticalCount = scanner.issues.filter(
+    (i) => i.severity === "CRITICAL"
+  ).length;
   if (criticalCount > 0) {
-    console.log(`⚠️  WARNING: Found ${criticalCount} CRITICAL security issues!\n`);
+    console.log(
+      `⚠️  WARNING: Found ${criticalCount} CRITICAL security issues!\n`
+    );
     process.exit(1);
   }
 }

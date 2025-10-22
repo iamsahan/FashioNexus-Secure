@@ -1,6 +1,7 @@
 import Inventory from "../models/inventory.model.js";
 import Promotion from "../models/promotion.model.js";
 import mongoose from "mongoose";
+import { safeParseInt, sanitizeSearchQuery } from "../utils/security.js";
 
 //get all promotions
 export const getPromotions = async (req, res) => {
@@ -130,8 +131,9 @@ export const updatePromotion = async (req, res) => {
 
 export const getPromotionSearch = async (req, res, next) => {
   try {
-    const limit = parseInt(req.query.limit) || 10;
-    const startIndex = parseInt(req.query.startIndex) || 0;
+    // Safe input validation
+    const limit = safeParseInt(req.query.limit, 10, 1, 100);
+    const startIndex = safeParseInt(req.query.startIndex, 0, 0, 10000);
 
     let type = req.query.type;
     if (type === undefined || type === "all") {

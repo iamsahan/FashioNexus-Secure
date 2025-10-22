@@ -4,66 +4,71 @@
  * and generates a detailed security report
  */
 
-import { ESLint } from 'eslint';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { ESLint } from "eslint";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Import custom security rules
-import securityRules from './eslint-custom-rules/security-rules.js';
+import securityRules from "./eslint-custom-rules/security-rules.js";
 
 // Security categories
 const SECURITY_CATEGORIES = {
-  'detect-missing-authentication': {
-    category: 'Missing Authentication on Critical Routes',
-    severity: 'CRITICAL',
-    description: 'Routes that perform sensitive operations without authentication middleware'
+  "detect-missing-authentication": {
+    category: "Missing Authentication on Critical Routes",
+    severity: "CRITICAL",
+    description:
+      "Routes that perform sensitive operations without authentication middleware",
   },
-  'detect-sensitive-data-exposure': {
-    category: 'Sensitive Data Exposure',
-    severity: 'HIGH',
-    description: 'Credentials, passwords, or sensitive data being logged or exposed'
+  "detect-sensitive-data-exposure": {
+    category: "Sensitive Data Exposure",
+    severity: "HIGH",
+    description:
+      "Credentials, passwords, or sensitive data being logged or exposed",
   },
-  'detect-nosql-injection': {
-    category: 'Injection Risks (NoSQL Injection)',
-    severity: 'CRITICAL',
-    description: 'User input used directly in database queries without validation'
+  "detect-nosql-injection": {
+    category: "Injection Risks (NoSQL Injection)",
+    severity: "CRITICAL",
+    description:
+      "User input used directly in database queries without validation",
   },
-  'detect-insecure-otp': {
-    category: 'Insecure OTP Implementation',
-    severity: 'HIGH',
-    description: 'Weak OTP generation, storage, or validation mechanisms'
+  "detect-insecure-otp": {
+    category: "Insecure OTP Implementation",
+    severity: "HIGH",
+    description: "Weak OTP generation, storage, or validation mechanisms",
   },
-  'detect-xss-vulnerabilities': {
-    category: 'Cross-Site Scripting (XSS)',
-    severity: 'HIGH',
-    description: 'User input reflected without sanitization'
+  "detect-xss-vulnerabilities": {
+    category: "Cross-Site Scripting (XSS)",
+    severity: "HIGH",
+    description: "User input reflected without sanitization",
   },
-  'detect-insecure-file-upload': {
-    category: 'Insecure File Upload',
-    severity: 'CRITICAL',
-    description: 'File uploads without proper validation or security measures'
+  "detect-insecure-file-upload": {
+    category: "Insecure File Upload",
+    severity: "CRITICAL",
+    description: "File uploads without proper validation or security measures",
   },
-  'detect-missing-security-headers': {
-    category: 'Missing Security Headers',
-    severity: 'MEDIUM',
-    description: 'Application missing critical security headers'
+  "detect-missing-security-headers": {
+    category: "Missing Security Headers",
+    severity: "MEDIUM",
+    description: "Application missing critical security headers",
   },
-  'detect-missing-csrf': {
-    category: 'Missing CSRF Protection',
-    severity: 'HIGH',
-    description: 'Cookie-based authentication without CSRF protection'
-  }
+  "detect-missing-csrf": {
+    category: "Missing CSRF Protection",
+    severity: "HIGH",
+    description: "Cookie-based authentication without CSRF protection",
+  },
 };
 
 async function runSecurityTests() {
-  console.log('╔═══════════════════════════════════════════════════════════╗');
-  console.log('║       FashioNexus Security Vulnerability Scanner         ║');
-  console.log('╚═══════════════════════════════════════════════════════════╝\n');
+  console.log("╔═══════════════════════════════════════════════════════════╗");
+  console.log("║       FashioNexus Security Vulnerability Scanner         ║");
+  console.log(
+    "╚═══════════════════════════════════════════════════════════╝\n"
+  );
 
   // Create ESLint instance with custom rules
   const eslint = new ESLint({
@@ -71,41 +76,41 @@ async function runSecurityTests() {
     overrideConfig: {
       env: {
         node: true,
-        es2021: true
+        es2021: true,
       },
       parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module'
+        ecmaVersion: "latest",
+        sourceType: "module",
       },
-      plugins: ['local-security'],
+      plugins: ["local-security"],
       rules: {
-        'local-security/detect-missing-authentication': 'error',
-        'local-security/detect-sensitive-data-exposure': 'error',
-        'local-security/detect-nosql-injection': 'error',
-        'local-security/detect-insecure-otp': 'error',
-        'local-security/detect-xss-vulnerabilities': 'error',
-        'local-security/detect-insecure-file-upload': 'error',
-        'local-security/detect-missing-security-headers': 'error',
-        'local-security/detect-missing-csrf': 'error'
-      }
+        "local-security/detect-missing-authentication": "error",
+        "local-security/detect-sensitive-data-exposure": "error",
+        "local-security/detect-nosql-injection": "error",
+        "local-security/detect-insecure-otp": "error",
+        "local-security/detect-xss-vulnerabilities": "error",
+        "local-security/detect-insecure-file-upload": "error",
+        "local-security/detect-missing-security-headers": "error",
+        "local-security/detect-missing-csrf": "error",
+      },
     },
     plugins: {
-      'local-security': securityRules
-    }
+      "local-security": securityRules,
+    },
   });
 
   // Files to scan
   const filesToScan = [
-    'api/index.js',
-    'api/routes/**/*.js',
-    'api/controllers/**/*.js',
-    'api/middleware/**/*.js',
-    'api/utils/**/*.js'
+    "api/index.js",
+    "api/routes/**/*.js",
+    "api/controllers/**/*.js",
+    "api/middleware/**/*.js",
+    "api/utils/**/*.js",
   ];
 
-  console.log('📂 Scanning files:');
-  filesToScan.forEach(file => console.log(`   - ${file}`));
-  console.log('\n🔍 Running security analysis...\n');
+  console.log("📂 Scanning files:");
+  filesToScan.forEach((file) => console.log(`   - ${file}`));
+  console.log("\n🔍 Running security analysis...\n");
 
   try {
     // Lint files
@@ -119,42 +124,43 @@ async function runSecurityTests() {
     generateHtmlReport(securityIssues);
     generateJsonReport(securityIssues);
 
-    console.log('\n✅ Security scan completed!');
-    console.log('📄 Reports generated:');
-    console.log('   - SECURITY_REPORT.md');
-    console.log('   - security-report.html');
-    console.log('   - security-report.json\n');
+    console.log("\n✅ Security scan completed!");
+    console.log("📄 Reports generated:");
+    console.log("   - SECURITY_REPORT.md");
+    console.log("   - security-report.html");
+    console.log("   - security-report.json\n");
 
     // Return exit code based on critical issues
-    const criticalCount = securityIssues.filter(i => 
-      SECURITY_CATEGORIES[i.ruleId]?.severity === 'CRITICAL'
+    const criticalCount = securityIssues.filter(
+      (i) => SECURITY_CATEGORIES[i.ruleId]?.severity === "CRITICAL"
     ).length;
-    
+
     if (criticalCount > 0) {
       console.log(`⚠️  Found ${criticalCount} CRITICAL security issues!`);
       process.exit(1);
     }
-
   } catch (error) {
-    console.error('❌ Error during security scan:', error);
+    console.error("❌ Error during security scan:", error);
     process.exit(1);
   }
 }
 
 function processResults(results) {
   const issues = [];
-  
-  results.forEach(result => {
+
+  results.forEach((result) => {
     if (result.messages && result.messages.length > 0) {
-      result.messages.forEach(message => {
-        if (message.ruleId && message.ruleId.startsWith('detect-')) {
+      result.messages.forEach((message) => {
+        if (message.ruleId && message.ruleId.startsWith("detect-")) {
           issues.push({
-            file: result.filePath.replace(/\\/g, '/').split('/api/')[1] || result.filePath,
+            file:
+              result.filePath.replace(/\\/g, "/").split("/api/")[1] ||
+              result.filePath,
             line: message.line,
             column: message.column,
             ruleId: message.ruleId,
             message: message.message,
-            severity: message.severity === 2 ? 'error' : 'warning'
+            severity: message.severity === 2 ? "error" : "warning",
           });
         }
       });
@@ -165,14 +171,14 @@ function processResults(results) {
 }
 
 function generateConsoleReport(issues) {
-  console.log('═══════════════════════════════════════════════════════════');
-  console.log('                    SECURITY ISSUES FOUND                  ');
-  console.log('═══════════════════════════════════════════════════════════\n');
+  console.log("═══════════════════════════════════════════════════════════");
+  console.log("                    SECURITY ISSUES FOUND                  ");
+  console.log("═══════════════════════════════════════════════════════════\n");
 
   // Group by category
   const grouped = {};
-  issues.forEach(issue => {
-    const category = SECURITY_CATEGORIES[issue.ruleId]?.category || 'Other';
+  issues.forEach((issue) => {
+    const category = SECURITY_CATEGORIES[issue.ruleId]?.category || "Other";
     if (!grouped[category]) {
       grouped[category] = [];
     }
@@ -180,37 +186,41 @@ function generateConsoleReport(issues) {
   });
 
   // Display by category
-  Object.keys(grouped).sort().forEach(category => {
-    const categoryIssues = grouped[category];
-    const ruleId = categoryIssues[0].ruleId;
-    const info = SECURITY_CATEGORIES[ruleId];
-    
-    console.log(`\n${'='.repeat(60)}`);
-    console.log(`📋 ${category}`);
-    console.log(`   Severity: ${info?.severity || 'UNKNOWN'}`);
-    console.log(`   Description: ${info?.description || 'N/A'}`);
-    console.log(`   Count: ${categoryIssues.length} issue(s)`);
-    console.log(`${'='.repeat(60)}\n`);
+  Object.keys(grouped)
+    .sort()
+    .forEach((category) => {
+      const categoryIssues = grouped[category];
+      const ruleId = categoryIssues[0].ruleId;
+      const info = SECURITY_CATEGORIES[ruleId];
 
-    categoryIssues.forEach((issue, index) => {
-      console.log(`   ${index + 1}. ${issue.file}:${issue.line}:${issue.column}`);
-      console.log(`      ⚠️  ${issue.message}\n`);
+      console.log(`\n${"=".repeat(60)}`);
+      console.log(`📋 ${category}`);
+      console.log(`   Severity: ${info?.severity || "UNKNOWN"}`);
+      console.log(`   Description: ${info?.description || "N/A"}`);
+      console.log(`   Count: ${categoryIssues.length} issue(s)`);
+      console.log(`${"=".repeat(60)}\n`);
+
+      categoryIssues.forEach((issue, index) => {
+        console.log(
+          `   ${index + 1}. ${issue.file}:${issue.line}:${issue.column}`
+        );
+        console.log(`      ⚠️  ${issue.message}\n`);
+      });
     });
-  });
 
   // Summary
-  console.log('\n═══════════════════════════════════════════════════════════');
-  console.log('                         SUMMARY                           ');
-  console.log('═══════════════════════════════════════════════════════════\n');
-  
-  const criticalCount = issues.filter(i => 
-    SECURITY_CATEGORIES[i.ruleId]?.severity === 'CRITICAL'
+  console.log("\n═══════════════════════════════════════════════════════════");
+  console.log("                         SUMMARY                           ");
+  console.log("═══════════════════════════════════════════════════════════\n");
+
+  const criticalCount = issues.filter(
+    (i) => SECURITY_CATEGORIES[i.ruleId]?.severity === "CRITICAL"
   ).length;
-  const highCount = issues.filter(i => 
-    SECURITY_CATEGORIES[i.ruleId]?.severity === 'HIGH'
+  const highCount = issues.filter(
+    (i) => SECURITY_CATEGORIES[i.ruleId]?.severity === "HIGH"
   ).length;
-  const mediumCount = issues.filter(i => 
-    SECURITY_CATEGORIES[i.ruleId]?.severity === 'MEDIUM'
+  const mediumCount = issues.filter(
+    (i) => SECURITY_CATEGORIES[i.ruleId]?.severity === "MEDIUM"
   ).length;
 
   console.log(`   🔴 CRITICAL: ${criticalCount}`);
@@ -222,8 +232,8 @@ function generateConsoleReport(issues) {
 
 function generateHtmlReport(issues) {
   const grouped = {};
-  issues.forEach(issue => {
-    const category = SECURITY_CATEGORIES[issue.ruleId]?.category || 'Other';
+  issues.forEach((issue) => {
+    const category = SECURITY_CATEGORIES[issue.ruleId]?.category || "Other";
     if (!grouped[category]) {
       grouped[category] = [];
     }
@@ -370,15 +380,28 @@ function generateHtmlReport(issues) {
         
         <div class="summary">
             <div class="summary-card">
-                <h3 class="critical">${issues.filter(i => SECURITY_CATEGORIES[i.ruleId]?.severity === 'CRITICAL').length}</h3>
+                <h3 class="critical">${
+                  issues.filter(
+                    (i) =>
+                      SECURITY_CATEGORIES[i.ruleId]?.severity === "CRITICAL"
+                  ).length
+                }</h3>
                 <p>Critical Issues</p>
             </div>
             <div class="summary-card">
-                <h3 class="high">${issues.filter(i => SECURITY_CATEGORIES[i.ruleId]?.severity === 'HIGH').length}</h3>
+                <h3 class="high">${
+                  issues.filter(
+                    (i) => SECURITY_CATEGORIES[i.ruleId]?.severity === "HIGH"
+                  ).length
+                }</h3>
                 <p>High Issues</p>
             </div>
             <div class="summary-card">
-                <h3 class="medium">${issues.filter(i => SECURITY_CATEGORIES[i.ruleId]?.severity === 'MEDIUM').length}</h3>
+                <h3 class="medium">${
+                  issues.filter(
+                    (i) => SECURITY_CATEGORIES[i.ruleId]?.severity === "MEDIUM"
+                  ).length
+                }</h3>
                 <p>Medium Issues</p>
             </div>
             <div class="summary-card">
@@ -390,38 +413,48 @@ function generateHtmlReport(issues) {
         <div class="content">
   `;
 
-  Object.keys(grouped).sort().forEach(category => {
-    const categoryIssues = grouped[category];
-    const ruleId = categoryIssues[0].ruleId;
-    const info = SECURITY_CATEGORIES[ruleId];
-    const severityClass = (info?.severity || 'MEDIUM').toLowerCase();
+  Object.keys(grouped)
+    .sort()
+    .forEach((category) => {
+      const categoryIssues = grouped[category];
+      const ruleId = categoryIssues[0].ruleId;
+      const info = SECURITY_CATEGORIES[ruleId];
+      const severityClass = (info?.severity || "MEDIUM").toLowerCase();
 
-    html += `
+      html += `
             <div class="category">
                 <div class="category-header">
                     <h2>${category}</h2>
                     <div class="meta">
-                        <span class="badge badge-${severityClass}">${info?.severity || 'UNKNOWN'}</span>
-                        <span style="color: #666;">${categoryIssues.length} issue(s) found</span>
+                        <span class="badge badge-${severityClass}">${
+        info?.severity || "UNKNOWN"
+      }</span>
+                        <span style="color: #666;">${
+                          categoryIssues.length
+                        } issue(s) found</span>
                     </div>
-                    <p style="margin-top: 10px; color: #666;">${info?.description || 'N/A'}</p>
+                    <p style="margin-top: 10px; color: #666;">${
+                      info?.description || "N/A"
+                    }</p>
                 </div>
     `;
 
-    categoryIssues.forEach((issue, index) => {
-      html += `
+      categoryIssues.forEach((issue, index) => {
+        html += `
                 <div class="issue">
                     <div><strong>Issue #${index + 1}</strong></div>
-                    <div class="issue-location">📁 ${issue.file}:${issue.line}:${issue.column}</div>
+                    <div class="issue-location">📁 ${issue.file}:${
+          issue.line
+        }:${issue.column}</div>
                     <div class="issue-message">⚠️ ${issue.message}</div>
                 </div>
       `;
-    });
+      });
 
-    html += `
+      html += `
             </div>
     `;
-  });
+    });
 
   html += `
         </div>
@@ -433,18 +466,18 @@ function generateHtmlReport(issues) {
 </html>
   `;
 
-  fs.writeFileSync('security-report.html', html);
+  fs.writeFileSync("security-report-after.html", html);
 }
 
 function generateJsonReport(issues) {
   const grouped = {};
-  issues.forEach(issue => {
-    const category = SECURITY_CATEGORIES[issue.ruleId]?.category || 'Other';
+  issues.forEach((issue) => {
+    const category = SECURITY_CATEGORIES[issue.ruleId]?.category || "Other";
     if (!grouped[category]) {
       grouped[category] = {
-        severity: SECURITY_CATEGORIES[issue.ruleId]?.severity || 'UNKNOWN',
-        description: SECURITY_CATEGORIES[issue.ruleId]?.description || 'N/A',
-        issues: []
+        severity: SECURITY_CATEGORIES[issue.ruleId]?.severity || "UNKNOWN",
+        description: SECURITY_CATEGORIES[issue.ruleId]?.description || "N/A",
+        issues: [],
       };
     }
     grouped[category].issues.push(issue);
@@ -454,14 +487,23 @@ function generateJsonReport(issues) {
     scanDate: new Date().toISOString(),
     summary: {
       total: issues.length,
-      critical: issues.filter(i => SECURITY_CATEGORIES[i.ruleId]?.severity === 'CRITICAL').length,
-      high: issues.filter(i => SECURITY_CATEGORIES[i.ruleId]?.severity === 'HIGH').length,
-      medium: issues.filter(i => SECURITY_CATEGORIES[i.ruleId]?.severity === 'MEDIUM').length
+      critical: issues.filter(
+        (i) => SECURITY_CATEGORIES[i.ruleId]?.severity === "CRITICAL"
+      ).length,
+      high: issues.filter(
+        (i) => SECURITY_CATEGORIES[i.ruleId]?.severity === "HIGH"
+      ).length,
+      medium: issues.filter(
+        (i) => SECURITY_CATEGORIES[i.ruleId]?.severity === "MEDIUM"
+      ).length,
     },
-    categories: grouped
+    categories: grouped,
   };
 
-  fs.writeFileSync('security-report.json', JSON.stringify(report, null, 2));
+  fs.writeFileSync(
+    "security-report-after.json",
+    JSON.stringify(report, null, 2)
+  );
 }
 
 // Run the security tests
