@@ -97,10 +97,9 @@ if (!fs.existsSync("uploads")) {
 // Secure image upload endpoint (route-level security only)
 app.post(
   "/api/upload",
-  veryfyTocken, // Require authenticated user
-  // Route-specific security headers via Helmet (not applied globally)
+  veryfyTocken,
   helmet({
-    frameguard: { action: "deny" }, // Prevent clickjacking
+    frameguard: { action: "deny" }, 
     contentSecurityPolicy: {
       useDefaults: false,
       directives: {
@@ -111,13 +110,11 @@ app.post(
         formAction: ["'self'"],
       },
     },
-    // Some Helmet middlewares disabled because we're returning JSON only
     crossOriginEmbedderPolicy: false,
     crossOriginOpenerPolicy: { policy: "same-origin" },
     crossOriginResourcePolicy: { policy: "same-origin" },
   }),
   (req, res, next) => {
-    // Additional minimal hardening headers
     res.setHeader("X-Content-Type-Options", "nosniff");
     next();
   },

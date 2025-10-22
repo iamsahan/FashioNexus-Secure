@@ -20,11 +20,10 @@ export default function OAuth() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken }),
-        credentials: "include", // include refresh cookie
+        credentials: "include",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Google auth failed");
-      // Merge access token into user object for client-side usage
       dispatch(signInSuccess({ ...data.user, accessToken: data.accessToken }));
       navigate("/");
     } catch (error) {
