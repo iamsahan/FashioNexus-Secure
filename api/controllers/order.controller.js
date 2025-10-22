@@ -35,12 +35,12 @@ export const createOrder = async (req, res) => {
     // Generate a unique order ID
     const orderId = `ORD-${uuidv4().slice(0, 6).toUpperCase()}`;
 
-    // Only store safe card info
+    // Only store limited (safe) card details if payment is done by card
     const safeCardInfo =
       paymentMethod === "Card"
         ? {
-            last4: cardInfo?.cardNumber?.slice(-4), // Only last 4 digits
-            expiryDate: cardInfo?.expiryDate, // Optional
+            last4: cardInfo?.cardNumber?.slice(-4), // Store Only last 4 digits for reference
+            expiryDate: cardInfo?.expiryDate, // Store expiry date if needed (Optional)
           }
         : undefined;
 
@@ -70,7 +70,7 @@ export const createOrder = async (req, res) => {
 export const OrderByUser = async (req, res) => {
   try {
     const orders = await Order.find({ userId: req.params.userId }).select(
-      "-cardInfo" // exclude entire cardInfo object
+      "-cardInfo" // exclude entire cardInfo object to protect sensitive information
     );
     res.json(orders);
   } catch (error) {
