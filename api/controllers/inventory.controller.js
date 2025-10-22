@@ -1,10 +1,11 @@
 import Inventory from "../models/inventory.model.js";
 import mongoose from "mongoose";
-import Joi from "joi"; // for validation
+import Joi from "joi"; // for input validation
 
-// ------------------- Validation Schemas -------------------
+// ------------------- Validation Schemas using Joi -------------------
+// This schema defines the structure and validation rules for inventory items.
 const inventorySchema = Joi.object({
-  ItemName: Joi.string().min(2).max(100).required(),
+  ItemName: Joi.string().min(2).max(100).required(), // Must be a string between 2–100 chars
   Category: Joi.string()
     .valid(
       "Men's Clothing",
@@ -14,7 +15,7 @@ const inventorySchema = Joi.object({
       "Footwear"
     )
     .required(),
-  price: Joi.number().min(0).required(),
+  price: Joi.number().min(0).required(), // Price must be a non-negative number
   quantity: Joi.number().min(0).required(),
   haveOffer: Joi.boolean().optional(),
   SupplierName: Joi.string().required(),
@@ -54,10 +55,11 @@ export const getInventory = async (req, res) => {
 //create new inventory
 export const createInventory = async (req, res, next) => {
   try {
-    // validate body
+    // validate body (Validate incoming request data using Joi)
     const { error, value } = inventorySchema.validate(req.body);
-    if (error) return res.status(400).json({ error: error.details[0].message });
+    if (error) return res.status(400).json({ error: error.details[0].message }); // If validation fails, send error message
 
+    // Create a new inventory record with validated data
     const addinventory = await Inventory.create(value); // safe input
     return res.status(201).json(addinventory);
   } catch (error) {
@@ -90,9 +92,9 @@ export const updateInventory = async (req, res) => {
     return res.status(404).json({ error: "No such inventory" });
   }
 
-  // validate update data
+  // Validate the data to be updated using Joi
   const { error, value } = inventorySchema.validate(req.body, {
-    allowUnknown: false,
+    allowUnknown: false, // Reject unknown operator fields not in schema
   });
   if (error) return res.status(400).json({ error: error.details[0].message });
 
