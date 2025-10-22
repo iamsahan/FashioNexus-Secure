@@ -132,7 +132,7 @@ app.post("/api/auth/sendotp", (req, res) => {
   otpMap.set(email, otp); // Store OTP for the email
 
   const mailOptions = {
-    from: process.env.MAIL_USER,
+    from: process.env.MAIL_USER, // The sender email (stored securely in .env file)
     to: email,
     subject: "Email Verification OTP",
     html: `
