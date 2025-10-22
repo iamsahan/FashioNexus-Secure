@@ -1,0 +1,26 @@
+{
+  "env": {
+    "node": true,
+    "es2021": true
+  },
+  "extends": [
+    "eslint:recommended"
+  ],
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  "plugins": ["local-security-rules"],
+  "rules": {
+    "local-security-rules/detect-missing-authentication": "error",
+    "local-security-rules/detect-sensitive-data-exposure": "error",
+    "local-security-rules/detect-nosql-injection": "error",
+    "local-security-rules/detect-insecure-otp": "error",
+    "local-security-rules/detect-xss-vulnerabilities": "error",
+    "local-security-rules/detect-insecure-file-upload": "error",
+    "local-security-rules/detect-missing-security-headers": "error",
+    "local-security-rules/detect-missing-csrf": "error",
+    "no-console": "off",
+    "no-unused-vars": "warn"
+  }
+}
