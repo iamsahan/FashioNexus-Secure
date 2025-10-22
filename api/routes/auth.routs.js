@@ -7,6 +7,7 @@ import {
 } from "../controllers/auth.controllers.js";
 import { veryfyTocken } from "../utils/verifyUser.js";
 import { generateCSRFToken } from "../utils/csrfProtection.js";
+import rateLimit from "express-rate-limit";
 
 const router = express.Router();
 

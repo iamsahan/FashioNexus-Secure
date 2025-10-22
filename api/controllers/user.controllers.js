@@ -79,8 +79,6 @@ export const getUser = async (req, res, next) => {
   }
 };
 
-import { safeParseInt, sanitizeSearchQuery } from "../utils/security.js";
-
 export const getUserSearch = async (req, res, next) => {
   try {
     // Safe input validation

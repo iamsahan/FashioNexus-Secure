@@ -20,7 +20,6 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { authenticate } from "./middleware/auth.middleware.js";
 import { getCSRFToken } from "./utils/csrfProtection.js";
-import helmet from "helmet";
 
 //dewni
 import inventoryRouter from "./routes/inventory.routs.js";
@@ -42,18 +41,54 @@ mongoose
 
 const app = express();
 
-// Security headers with helmet
+// Comprehensive security headers with helmet
 app.use(
   helmet({
+    // Content Security Policy with comprehensive directives
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "https:"],
+        styleSrc: ["'self'", "https://fonts.googleapis.com"], // Removed unsafe-inline
+        scriptSrc: ["'self'"], // No unsafe directives
+        imgSrc: ["'self'", "data:", "https:", "blob:"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        connectSrc: ["'self'", "https://api.emailjs.com"],
+        mediaSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"], // Prevents clickjacking
+        upgradeInsecureRequests:
+          process.env.NODE_ENV === "production" ? [] : null,
       },
     },
+    // Strict Transport Security (HSTS)
+    hsts: {
+      maxAge: 31536000, // 1 year
+      includeSubDomains: true,
+      preload: true,
+    },
+    // X-Frame-Options for clickjacking protection
+    frameguard: {
+      action: "deny",
+    },
+    // X-Content-Type-Options to prevent MIME sniffing
+    noSniff: true,
+    // X-XSS-Protection
+    xssFilter: true,
+    // Referrer Policy
+    referrerPolicy: {
+      policy: "strict-origin-when-cross-origin",
+    },
+    // Remove X-Powered-By header
+    hidePoweredBy: true,
+    // Cross Origin Embedder Policy
     crossOriginEmbedderPolicy: false, // Adjust based on your needs
+    // DNS Prefetch Control
+    dnsPrefetchControl: {
+      allow: false,
+    },
   })
 );
 
@@ -62,9 +97,62 @@ app.get("/", (req, res) => {
   res.json({ mssg: "Welcome to the app" });
 });
 
+// Hide Express server information
+app.disable("x-powered-by");
+
+// Custom middleware to remove sensitive server headers and ensure security headers
+app.use((req, res, next) => {
+  res.removeHeader("X-Powered-By");
+  res.removeHeader("Server");
+
+  // Ensure critical security headers are always present
+  res.set({
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy":
+      "camera=(), microphone=(), geolocation=(), payment=()",
+  });
+
+  // Add HSTS for HTTPS
+  if (process.env.NODE_ENV === "production") {
+    res.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload"
+    );
+  }
+
+  next();
+});
+
 app.use(express.json());
 app.use(cookieParser());
-// Configure CORS with restricted origins for production
+
+// Security middleware to block access to hidden files and sensitive paths
+app.use((req, res, next) => {
+  const path = req.path.toLowerCase();
+
+  // Block access to hidden files and directories
+  if (
+    path.includes("/.") ||
+    path.includes("\\.") ||
+    path.endsWith(".env") ||
+    path.endsWith(".git") ||
+    path.includes("/.git/") ||
+    path.includes("node_modules") ||
+    path.endsWith(".log") ||
+    path.endsWith(".bak") ||
+    path.endsWith(".backup") ||
+    path.endsWith(".tmp") ||
+    path.includes("config.")
+  ) {
+    return res.status(404).json({ error: "File not found" });
+  }
+
+  next();
+});
+// Configure CORS with strict security settings
 const allowedOrigins =
   process.env.NODE_ENV === "production"
     ? ["https://fashio.flowiix.com"]
@@ -73,17 +161,38 @@ const allowedOrigins =
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true);
+      // In development, be more permissive for testing tools like ZAP
+      if (process.env.NODE_ENV !== "production") {
+        // Allow localhost variations and testing tools
+        if (
+          !origin ||
+          origin.startsWith("http://localhost") ||
+          origin.startsWith("http://127.0.0.1") ||
+          allowedOrigins.includes(origin)
+        ) {
+          return callback(null, true);
+        }
+      }
 
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      // Production: strict origin checking
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("Not allowed by CORS"));
+        callback(new Error(`CORS: Origin ${origin} not allowed`));
       }
     },
-    methods: "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: [
+      "Origin",
+      "X-Requested-With",
+      "Content-Type",
+      "Accept",
+      "Authorization",
+      "X-CSRF-Token",
+    ],
     credentials: true,
     optionsSuccessStatus: 200,
+    maxAge: 86400, // 24 hours - cache preflight requests
   })
 );
 
@@ -182,6 +291,49 @@ app.use("/uploads", express.static(join(__dirname, "uploads")));
 
 // CSRF token endpoint (must be authenticated)
 app.get("/api/csrf-token", authenticate, getCSRFToken);
+
+// API-specific security middleware
+app.use("/api", (req, res, next) => {
+  // Ensure anti-clickjacking headers are always present on API routes
+  res.set({
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "X-XSS-Protection": "1; mode=block",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
+  next();
+});
+
+// Enhanced security middleware specifically for API routes
+app.use("/api", (req, res, next) => {
+  // Ensure all API responses have comprehensive security headers
+  res.set({
+    "X-Frame-Options": "DENY",
+    "X-Content-Type-Options": "nosniff",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy":
+      "default-src 'self'; script-src 'none'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy":
+      "camera=(), microphone=(), geolocation=(), payment=()",
+    "Cross-Origin-Embedder-Policy": "require-corp",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Resource-Policy": "same-origin",
+  });
+
+  // Add HSTS for production
+  if (process.env.NODE_ENV === "production") {
+    res.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload"
+    );
+  }
+
+  next();
+});
 
 app.use("/api/auth", authRouter);
 app.use("/api/auth", otpRouter); // /sendotp & /verifyotp
