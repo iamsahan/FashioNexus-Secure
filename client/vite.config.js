@@ -50,11 +50,11 @@ export default defineConfig({
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "Permissions-Policy":
         "camera=(), microphone=(), geolocation=(), payment=()",
-      // Use permissive CSP in development for functionality
+      // Secure CSP for development with specific allowances for necessary libraries
       "Content-Security-Policy":
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+        "script-src 'self' 'wasm-unsafe-eval'; " +
+        "style-src 'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' 'sha256-hx0up+5msNNPOIf047hgFKR59NaAvp5txflkdef6WVE=' 'sha256-biLFinpqYMtWHmXfkA1BPeCY0/fNt46SAZ+BBk5YUog=' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data: https: blob:; " +
         "connect-src 'self' ws: wss: http://localhost:3000 http://127.0.0.1:3000 http://16.171.225.212; " +

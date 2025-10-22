@@ -1,0 +1,13 @@
+User-agent: *
+Disallow: /api/
+Disallow: /admin/
+Disallow: /.env
+Disallow: /uploads/
+Disallow: /node_modules/
+
+# Allow access to public assets
+Allow: /assets/
+Allow: /public/
+
+# Sitemap location
+Sitemap: http://localhost:5173/sitemap.xml
