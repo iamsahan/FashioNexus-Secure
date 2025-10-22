@@ -17,6 +17,14 @@ const inventorySchema = Joi.object({
   price: Joi.number().min(0).required(),
   quantity: Joi.number().min(0).required(),
   haveOffer: Joi.boolean().optional(),
+  SupplierName: Joi.string().required(),
+  SupplierContact: Joi.string().required(),
+  StockStatus: Joi.string().required(),
+  ReorderLevel: Joi.number().required(),
+  StockQuantity: Joi.number().required(),
+  description: Joi.string().required(),
+  UnitPrice: Joi.number().required(),
+  SKU: Joi.number().required(),
 });
 
 //GET all inventories
