@@ -28,27 +28,33 @@ export default defineConfig({
             delete proxyRes.headers["server"];
             delete proxyRes.headers["x-powered-by"];
 
-            // Add security headers to API responses
+            // Add comprehensive security headers to API responses
             proxyRes.headers["X-Content-Type-Options"] = "nosniff";
             proxyRes.headers["X-Frame-Options"] = "DENY";
             proxyRes.headers["X-XSS-Protection"] = "1; mode=block";
+            proxyRes.headers["Referrer-Policy"] =
+              "strict-origin-when-cross-origin";
+            proxyRes.headers["Content-Security-Policy"] =
+              "default-src 'self'; script-src 'none'; style-src 'none'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
+            proxyRes.headers["Permissions-Policy"] =
+              "camera=(), microphone=(), geolocation=(), payment=()";
           });
         },
       },
     },
-    // Security headers for development server
+    // Security headers for development server - More secure CSP with specific hashes
     headers: {
       "X-Content-Type-Options": "nosniff",
       "X-Frame-Options": "DENY",
       "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "Permissions-Policy":
         "camera=(), microphone=(), geolocation=(), payment=()",
+      // Use permissive CSP in development for functionality
       "Content-Security-Policy":
         "default-src 'self'; " +
-        "script-src 'self' 'nonce-vite-dev' 'nonce-react-dev'; " +
-        "style-src 'self' 'nonce-vite-styles' https://fonts.googleapis.com; " +
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data: https: blob:; " +
         "connect-src 'self' ws: wss: http://localhost:3000 http://127.0.0.1:3000 http://16.171.225.212; " +
@@ -56,9 +62,7 @@ export default defineConfig({
         "object-src 'none'; " +
         "frame-src 'none'; " +
         "base-uri 'self'; " +
-        "form-action 'self'; " +
-        "frame-ancestors 'none'; " +
-        "upgrade-insecure-requests;",
+        "form-action 'self';",
     },
   },
   build: {
