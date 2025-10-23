@@ -3,9 +3,10 @@ import mongoose from "mongoose";
 import Joi from "joi"; // for validation
 import { safeParseInt, sanitizeSearchQuery } from "../utils/security.js";
 
-// ------------------- Validation Schemas -------------------
+// ------------------- Validation Schemas using Joi -------------------
+// This schema defines the structure and validation rules for inventory items
 const inventorySchema = Joi.object({
-  ItemName: Joi.string().min(2).max(100).required(),
+  ItemName: Joi.string().min(2).max(100).required(), //must be string between 2 and 100 characters
   Category: Joi.string()
     .valid(
       "Men's Clothing",
@@ -55,7 +56,7 @@ export const getInventory = async (req, res) => {
 //create new inventory
 export const createInventory = async (req, res, next) => {
   try {
-    // validate body
+    // validate body (validate incoming request data using joi schema)
     const { error, value } = inventorySchema.validate(req.body);
     if (error) return res.status(400).json({ error: error.details[0].message });
 
@@ -91,7 +92,7 @@ export const updateInventory = async (req, res) => {
     return res.status(404).json({ error: "No such inventory" });
   }
 
-  // validate update data
+  // validate the data to be updated using Joi data
   const { error, value } = inventorySchema.validate(req.body, {
     allowUnknown: false,
   });

@@ -24,7 +24,7 @@ router.post(
   "/add",
   authenticate,
   requireManager,
-  validateCSRFToken,
+  // validateCSRFToken,
   createInventory
 );
 router.delete(
@@ -38,7 +38,7 @@ router.patch(
   "/:id",
   authenticate,
   requireManager,
-  validateCSRFToken,
+  // validateCSRFToken,
   updateInventory
 );
 

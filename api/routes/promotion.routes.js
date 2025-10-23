@@ -25,7 +25,7 @@ router.post(
   "/",
   authenticate,
   requireManager,
-  validateCSRFToken,
+  // validateCSRFToken,
   createPromotion
 );
 router.delete(

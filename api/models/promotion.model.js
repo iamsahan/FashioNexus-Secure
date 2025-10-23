@@ -12,10 +12,10 @@ const promotionSchema = new Schema(
       type: String,
       required: true,
     },
-    itemId: {
-      type: String,
-      required: true,
-    },
+    // itemId: {
+    //   type: String,
+    //   required: true,
+    // },
     promotionCode: {
       type: String,
       required: true,

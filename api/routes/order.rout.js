@@ -17,7 +17,7 @@ import { validateCSRFToken } from "../utils/csrfProtection.js";
 const router = express.Router();
 
 // Customer routes - customers can create their own orders (with CSRF protection)
-router.post("/add", authenticate, validateCSRFToken, createOrder);
+router.post("/add", authenticate,  createOrder);
 
 // User-specific routes - users can view their own orders, managers can view any (GET requests don't need CSRF)
 router.get("/get/:userId", authenticate, requireSelfOrManager, OrderByUser);
