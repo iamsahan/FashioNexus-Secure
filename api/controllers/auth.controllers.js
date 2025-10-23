@@ -10,6 +10,14 @@ import {
   hashRefreshId,
   verifyRefreshToken,
 } from "../utils/tokens.js";
+import csrf from "csrf";
+
+// Create CSRF instance
+const csrfTokens = new csrf();
+const tokenStore = new Map();
+
+// Export tokenStore for use in CSRF middleware
+export { tokenStore };
 
 export const signup = async (req, res, next) => {
   const { username, email, password, ismanager, usertype } = req.body;
@@ -53,6 +61,12 @@ export const signin = async (req, res, next) => {
       ip: req.ip,
     });
     await user.save();
+    
+    // Generate CSRF token for authenticated user
+    const secret = csrfTokens.secretSync();
+    const csrfToken = csrfTokens.create(secret);
+    tokenStore.set(user._id.toString(), secret);
+    
     const { password: pass, refreshTokens, ...rest } = user._doc;
     res
       .cookie("access_token", accessToken, {
@@ -61,10 +75,17 @@ export const signin = async (req, res, next) => {
         sameSite: "strict",
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
       })
+      .cookie("csrf_token", csrfToken, {
+        httpOnly: false, // Must be readable by JavaScript
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      })
       .status(200)
       .json({
         user: rest,
         accessToken,
+        csrfToken, // Also send in response body for convenience
         expiresIn: process.env.ACCESS_TOKEN_EXP || "15m",
       });
   } catch (err) {
@@ -96,6 +117,12 @@ export const google = async (req, res, next) => {
     
     if (user) {
       const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
+      
+      // Generate CSRF token
+      const secret = csrfTokens.secretSync();
+      const csrfToken = csrfTokens.create(secret);
+      tokenStore.set(user._id.toString(), secret);
+      
       const { password: pass, ...rest } = user._doc;
       res
         .cookie("access_token", token, {
@@ -104,8 +131,14 @@ export const google = async (req, res, next) => {
           sameSite: "strict",
           maxAge: 24 * 60 * 60 * 1000, // 24 hours
         })
+        .cookie("csrf_token", csrfToken, {
+          httpOnly: false,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        })
         .status(200)
-        .json(rest);
+        .json({ ...rest, csrfToken });
     } else {
       const generatedPassword =
         Math.random().toString(36).slice(-8) +
@@ -120,6 +153,12 @@ export const google = async (req, res, next) => {
         usertype: "customer",
       });
       const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET);
+      
+      // Generate CSRF token
+      const secret = csrfTokens.secretSync();
+      const csrfToken = csrfTokens.create(secret);
+      tokenStore.set(newUser._id.toString(), secret);
+      
       const { password: pass, ...rest } = newUser._doc;
       res
         .cookie("access_token", token, {
@@ -128,8 +167,14 @@ export const google = async (req, res, next) => {
           sameSite: "strict",
           maxAge: 24 * 60 * 60 * 1000, // 24 hours
         })
+        .cookie("csrf_token", csrfToken, {
+          httpOnly: false,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        })
         .status(200)
-        .json(rest);
+        .json({ ...rest, csrfToken });
     }
   } catch (error) {
     next(error);
@@ -138,11 +183,22 @@ export const google = async (req, res, next) => {
 
 export const signOut = (req, res, next) => {
   try {
-    res.clearCookie("access_token", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    });
+    // Remove CSRF token from store if user is authenticated
+    if (req.user?.id) {
+      tokenStore.delete(req.user.id.toString());
+    }
+    
+    res
+      .clearCookie("access_token", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      })
+      .clearCookie("csrf_token", {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+      });
     res.status(200).json("User has been signed out!");
   } catch (err) {
     next(err);

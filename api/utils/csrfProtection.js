@@ -1,11 +1,9 @@
 import csrf from "csrf";
 import { errorHandler } from "./error.js";
+import { tokenStore } from "../controllers/auth.controllers.js";
 
 // Create CSRF instance
 const tokens = new csrf();
-
-// Store tokens
-const tokenStore = new Map();
 
 // Generate CSRF token and associate with user session
 export const generateCSRFToken = (req, res, next) => {
