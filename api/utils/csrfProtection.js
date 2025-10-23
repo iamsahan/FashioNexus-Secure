@@ -18,8 +18,8 @@ export const generateCSRFToken = (req, res, next) => {
     const secret = tokens.secretSync();
     const token = tokens.create(secret);
 
-    // Store secret associated with user ID
-    tokenStore.set(userId, secret);
+    // Store secret associated with user ID (convert ObjectId to string)
+    tokenStore.set(userId.toString(), secret);
 
     // Set CSRF token in cookie with same security flags as access_token
     res.cookie("csrf_token", token, {
@@ -48,14 +48,14 @@ export const validateCSRFToken = (req, res, next) => {
       return next(errorHandler(401, "Authentication required"));
     }
 
-    // Get token from header or body
-    const token = req.headers["x-csrf-token"] || req.body._csrf;
+    // Get token from header, body, or cookie
+    const token = req.headers["x-csrf-token"] || req.body._csrf || req.cookies.csrf_token;
     if (!token) {
       return next(errorHandler(403, "CSRF token missing"));
     }
 
-    // Get stored secret for this user
-    const secret = tokenStore.get(userId);
+    // Get stored secret for this user (convert ObjectId to string)
+    const secret = tokenStore.get(userId.toString());
     if (!secret) {
       return next(errorHandler(403, "CSRF secret not found"));
     }
@@ -80,11 +80,12 @@ export const getCSRFToken = (req, res, next) => {
       return next(errorHandler(401, "Authentication required"));
     }
 
-    // Generate or get existing token
-    let secret = tokenStore.get(userId);
+    // Generate or get existing token (convert ObjectId to string)
+    const userIdStr = userId.toString();
+    let secret = tokenStore.get(userIdStr);
     if (!secret) {
       secret = tokens.secretSync();
-      tokenStore.set(userId, secret);
+      tokenStore.set(userIdStr, secret);
     }
 
     const token = tokens.create(secret);

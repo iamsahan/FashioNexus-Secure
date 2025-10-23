@@ -1,0 +1,711 @@
+{
+  "info": {
+    "name": "Discount CSRF Protection Testing",
+    "description": "Complete test suite for CSRF token protection on discount management routes",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "FashioNexus-Secure-Tests"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "managerEmail",
+      "value": "manager@example.com",
+      "type": "string"
+    },
+    {
+      "key": "managerPassword",
+      "value": "Manager123!",
+      "type": "string"
+    },
+    {
+      "key": "csrfToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "discountId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Setup & Authentication",
+      "item": [
+        {
+          "name": "1.1 Create Manager Account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 or 201\", function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test(\"Manager account created or already exists\", function () {",
+                  "    const responseText = pm.response.text();",
+                  "    pm.expect(responseText).to.satisfy(function (text) {",
+                  "        return text.includes('created successfully') || text.includes('already exists');",
+                  "    });",
+                  "});",
+                  "",
+                  "console.log(\"✓ Manager account ready\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"manager_user\",\n  \"email\": \"{{managerEmail}}\",\n  \"password\": \"{{managerPassword}}\",\n  \"ismanager\": true,\n  \"usertype\": \"manager\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/signup",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "signup"]
+            },
+            "description": "Create a manager account with elevated privileges. This account will be used for testing discount management endpoints."
+          },
+          "response": []
+        },
+        {
+          "name": "1.2 Sign In as Manager",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    ",
+                  "    // Save tokens to environment",
+                  "    pm.environment.set(\"csrfToken\", jsonData.csrfToken);",
+                  "    pm.environment.set(\"accessToken\", jsonData.accessToken);",
+                  "    pm.environment.set(\"userId\", jsonData.user._id);",
+                  "    ",
+                  "    // Verify manager role",
+                  "    pm.test(\"User is manager\", function () {",
+                  "        pm.expect(jsonData.user.ismanager).to.be.true;",
+                  "    });",
+                  "    ",
+                  "    // Verify CSRF token exists",
+                  "    pm.test(\"CSRF token received\", function () {",
+                  "        pm.expect(jsonData.csrfToken).to.exist;",
+                  "        pm.expect(jsonData.csrfToken).to.be.a('string');",
+                  "        pm.expect(jsonData.csrfToken).to.have.lengthOf.above(10);",
+                  "    });",
+                  "    ",
+                  "    // Verify access token exists",
+                  "    pm.test(\"Access token received\", function () {",
+                  "        pm.expect(jsonData.accessToken).to.exist;",
+                  "    });",
+                  "    ",
+                  "    // Verify cookies are set",
+                  "    pm.test(\"Cookies are set\", function () {",
+                  "        pm.expect(pm.cookies.has('access_token')).to.be.true;",
+                  "    });",
+                  "    ",
+                  "    console.log(\"✓ Manager logged in successfully\");",
+                  "    console.log(\"✓ CSRF Token:\", jsonData.csrfToken.substring(0, 20) + \"...\");",
+                  "    console.log(\"✓ User ID:\", jsonData.user._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{managerEmail}}\",\n  \"password\": \"{{managerPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/signin",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "signin"]
+            },
+            "description": "Sign in with manager credentials to obtain CSRF token and authentication cookies"
+          },
+          "response": []
+        }
+      ],
+      "description": "Initial setup: Create manager account and obtain authentication tokens"
+    },
+    {
+      "name": "2. Public Endpoints (No CSRF Required)",
+      "item": [
+        {
+          "name": "2.1 GET All Discounts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Response is an array\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test(\"No authentication required\", function () {",
+                  "    pm.expect(pm.request.headers.has('X-CSRF-Token')).to.be.false;",
+                  "});",
+                  "",
+                  "pm.test(\"Public endpoint accessible\", function () {",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "console.log(\"✓ Public GET endpoint works without authentication\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/discount/get",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discount", "get"]
+            },
+            "description": "Public endpoint - no authentication or CSRF token required"
+          },
+          "response": []
+        }
+      ],
+      "description": "Test public endpoints that don't require CSRF protection"
+    },
+    {
+      "name": "3. CSRF Protection Tests (CREATE)",
+      "item": [
+        {
+          "name": "3.1 ✅ Create Discount WITH Valid CSRF",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    const jsonData = pm.response.json();",
+                  "    ",
+                  "    // Save discount ID for later tests",
+                  "    pm.environment.set(\"discountId\", jsonData.newDiscount._id);",
+                  "    ",
+                  "    pm.test(\"Discount created successfully\", function () {",
+                  "        pm.expect(jsonData.message).to.include(\"created successfully\");",
+                  "    });",
+                  "    ",
+                  "    pm.test(\"Discount has ID\", function () {",
+                  "        pm.expect(jsonData.newDiscount._id).to.exist;",
+                  "    });",
+                  "    ",
+                  "    pm.test(\"Discount data is correct\", function () {",
+                  "        pm.expect(jsonData.newDiscount.title).to.equal(\"Black Friday Sale\");",
+                  "        pm.expect(jsonData.newDiscount.rate).to.equal(30);",
+                  "        pm.expect(jsonData.newDiscount.itemId).to.equal(\"ITEM001\");",
+                  "    });",
+                  "    ",
+                  "    console.log(\"✓ Discount created with ID:\", jsonData.newDiscount._id);",
+                  "    console.log(\"✓ CSRF token validated successfully\");",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Valid CSRF token from signin"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": \"ITEM001\",\n  \"title\": \"Black Friday Sale\",\n  \"rate\": 30,\n  \"period\": \"2024-11-24 to 2024-11-30\",\n  \"conditions\": \"Limited time offer\",\n  \"description\": \"30% off on selected items during Black Friday\",\n  \"finalPrice\": 70,\n  \"actualprice\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/discount/add",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discount", "add"]
+            },
+            "description": "✅ EXPECTED SUCCESS: Create discount with valid CSRF token and manager authentication"
+          },
+          "response": []
+        },
+        {
+          "name": "3.2 ❌ Create Discount WITHOUT CSRF Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"CSRF token missing error\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.include(\"CSRF token\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.include(\"missing\");",
+                  "});",
+                  "",
+                  "pm.test(\"Request blocked by CSRF protection\", function () {",
+                  "    pm.expect(pm.response.json().success).to.be.false;",
+                  "});",
+                  "",
+                  "console.log(\"✓ CSRF protection working: Request blocked without token\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": \"ITEM002\",\n  \"title\": \"Cyber Monday\",\n  \"rate\": 25,\n  \"period\": \"2024-11-27 to 2024-11-27\",\n  \"conditions\": \"One day only\",\n  \"description\": \"25% off everything\",\n  \"finalPrice\": 75,\n  \"actualprice\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/discount/add",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discount", "add"]
+            },
+            "description": "❌ EXPECTED FAILURE (403): Attempt to create discount without CSRF token - should be blocked"
+          },
+          "response": []
+        },
+        {
+          "name": "3.3 ❌ Create Discount WITH Invalid CSRF Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"Invalid CSRF token error\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.include(\"Invalid CSRF token\");",
+                  "});",
+                  "",
+                  "pm.test(\"Invalid token rejected\", function () {",
+                  "    pm.expect(pm.response.json().success).to.be.false;",
+                  "});",
+                  "",
+                  "console.log(\"✓ CSRF protection working: Invalid token rejected\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "invalid-token-12345-this-should-fail",
+                "description": "Invalid CSRF token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": \"ITEM003\",\n  \"title\": \"Invalid Token Test\",\n  \"rate\": 15,\n  \"period\": \"2024-12-01 to 2024-12-31\",\n  \"conditions\": \"Test condition\",\n  \"description\": \"Testing invalid CSRF token\",\n  \"finalPrice\": 85,\n  \"actualprice\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/discount/add",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discount", "add"]
+            },
+            "description": "❌ EXPECTED FAILURE (403): Attempt to create discount with tampered/invalid CSRF token"
+          },
+          "response": []
+        }
+      ],
+      "description": "Test CSRF protection on discount creation endpoint"
+    },
+    {
+      "name": "4. CSRF Protection Tests (UPDATE)",
+      "item": [
+        {
+          "name": "4.1 ✅ Update Discount WITH Valid CSRF",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Discount updated successfully\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.title).to.equal(\"Updated Black Friday Sale\");",
+                  "    pm.expect(jsonData.rate).to.equal(35);",
+                  "});",
+                  "",
+                  "pm.test(\"Update data is correct\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.description).to.include(\"UPDATED\");",
+                  "    pm.expect(jsonData.finalPrice).to.equal(65);",
+                  "});",
+                  "",
+                  "console.log(\"✓ Discount updated with valid CSRF token\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Valid CSRF token"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Black Friday Sale\",\n  \"rate\": 35,\n  \"period\": \"2024-11-24 to 2024-11-30\",\n  \"conditions\": \"Extended offer\",\n  \"description\": \"35% off on selected items during Black Friday - UPDATED\",\n  \"finalPrice\": 65,\n  \"actualprice\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/discount/update/{{discountId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discount", "update", "{{discountId}}"]
+            },
+            "description": "✅ EXPECTED SUCCESS: Update discount with valid CSRF token"
+          },
+          "response": []
+        },
+        {
+          "name": "4.2 ❌ Update Discount WITHOUT CSRF Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"CSRF token missing error\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.include(\"CSRF token\");",
+                  "});",
+                  "",
+                  "console.log(\"✓ CSRF protection working: Update blocked without token\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Should Not Update\",\n  \"rate\": 50,\n  \"period\": \"2024-11-24 to 2024-11-30\",\n  \"conditions\": \"Test\",\n  \"description\": \"This should fail\",\n  \"finalPrice\": 50,\n  \"actualprice\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/discount/update/{{discountId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discount", "update", "{{discountId}}"]
+            },
+            "description": "❌ EXPECTED FAILURE (403): Attempt to update without CSRF token"
+          },
+          "response": []
+        }
+      ],
+      "description": "Test CSRF protection on discount update endpoint"
+    },
+    {
+      "name": "5. CSRF Protection Tests (DELETE)",
+      "item": [
+        {
+          "name": "5.1 ❌ Delete Discount WITHOUT CSRF Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 403 Forbidden\", function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test(\"CSRF token missing error\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.include(\"CSRF token\");",
+                  "});",
+                  "",
+                  "console.log(\"✓ CSRF protection working: Delete blocked without token\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/discount/delete/{{discountId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discount", "delete", "{{discountId}}"]
+            },
+            "description": "❌ EXPECTED FAILURE (403): Attempt to delete without CSRF token"
+          },
+          "response": []
+        },
+        {
+          "name": "5.2 ✅ Delete Discount WITH Valid CSRF",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Discount deleted successfully\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.include(\"deleted successfully\");",
+                  "});",
+                  "",
+                  "// Clean up environment variable",
+                  "pm.environment.unset(\"discountId\");",
+                  "",
+                  "console.log(\"✓ Discount deleted with valid CSRF token\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}",
+                "description": "Valid CSRF token"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/discount/delete/{{discountId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discount", "delete", "{{discountId}}"]
+            },
+            "description": "✅ EXPECTED SUCCESS: Delete discount with valid CSRF token"
+          },
+          "response": []
+        }
+      ],
+      "description": "Test CSRF protection on discount deletion endpoint"
+    },
+    {
+      "name": "6. Additional Test Data",
+      "item": [
+        {
+          "name": "6.1 Create Summer Sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "console.log(\"✓ Summer sale discount created\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": \"SUMMER001\",\n  \"title\": \"Summer Clearance\",\n  \"rate\": 40,\n  \"period\": \"2024-07-01 to 2024-07-31\",\n  \"conditions\": \"While supplies last\",\n  \"description\": \"Huge summer sale - 40% off all summer items\",\n  \"finalPrice\": 60,\n  \"actualprice\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/discount/add",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discount", "add"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.2 Create Winter Bonanza",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "console.log(\"✓ Winter bonanza discount created\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": \"WINTER002\",\n  \"title\": \"Winter Bonanza\",\n  \"rate\": 50,\n  \"period\": \"2024-12-15 to 2025-01-15\",\n  \"conditions\": \"All winter clothing\",\n  \"description\": \"Half price on all winter collection\",\n  \"finalPrice\": 50,\n  \"actualprice\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/discount/add",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discount", "add"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6.3 Create Flash Sale",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status code is 201\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "console.log(\"✓ Flash sale discount created\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-CSRF-Token",
+                "value": "{{csrfToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"itemId\": \"FLASH003\",\n  \"title\": \"Flash Sale\",\n  \"rate\": 60,\n  \"period\": \"2024-10-25 to 2024-10-25\",\n  \"conditions\": \"Today only, limited items\",\n  \"description\": \"60% off flash sale for 24 hours only\",\n  \"finalPrice\": 40,\n  \"actualprice\": 100\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/discount/add",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "discount", "add"]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Additional test data for comprehensive testing"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global pre-request script",
+          "console.log('===================================');",
+          "console.log('Request:', pm.info.requestName);",
+          "console.log('===================================');"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Global test script",
+          "console.log('Response Status:', pm.response.code, pm.response.status);",
+          "console.log('===================================');"
+        ]
+      }
+    }
+  ]
+}
