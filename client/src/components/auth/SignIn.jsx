@@ -13,7 +13,7 @@ import OAuth from "./OAuth";
 
 export default function SignIn({ onClose, onSignUp }) {
   const [formData, setFormData] = useState({ email: "", password: "" });
-  const { loading } = useSelector((state) => state.user);
+  const { loading } = useSelector((state) => state.user || {});
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
@@ -28,6 +28,7 @@ export default function SignIn({ onClose, onSignUp }) {
       const res = await fetch("/api/auth/signin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           email: formData.email.toLowerCase(),
           password: formData.password,
@@ -47,6 +48,7 @@ export default function SignIn({ onClose, onSignUp }) {
         return;
       }
 
+      console.log("SignIn - User data received:", data);
       dispatch(signInSuccess(data));
       onClose(); // Close the popup on successful login
       if (data.ismanager) {

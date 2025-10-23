@@ -1,6 +1,8 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import mongoose from "mongoose";
-import dotenv from "dotenv";
 import authRouter from "./routes/auth.routs.js";
 import otpRouter from "./routes/otp.routs.js";
 import discountRouter from "./routes/discount.route.js";
@@ -26,8 +28,6 @@ import inventoryRouter from "./routes/inventory.routs.js";
 
 //shadini
 import promotionRouter from "./routes/promotion.routes.js";
-
-dotenv.config();
 const MONGODB_URL = process.env.MONGO_URI; // Use the env variable
 
 mongoose
@@ -69,9 +69,9 @@ app.use(
       includeSubDomains: true,
       preload: true,
     },
-    // X-Frame-Options for clickjacking protection
+    // X-Frame-Options for clickjacking protection - SAMEORIGIN to allow OAuth
     frameguard: {
-      action: "deny",
+      action: "sameorigin",
     },
     // X-Content-Type-Options to prevent MIME sniffing
     noSniff: true,
@@ -83,8 +83,10 @@ app.use(
     },
     // Remove X-Powered-By header
     hidePoweredBy: true,
-    // Cross Origin Embedder Policy
-    crossOriginEmbedderPolicy: false, // Adjust based on your needs
+    // Disable COOP/COEP to allow OAuth popups
+    crossOriginEmbedderPolicy: false,
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
     // DNS Prefetch Control
     dnsPrefetchControl: {
       allow: false,
@@ -107,7 +109,7 @@ app.use((req, res, next) => {
 
   // Ensure critical security headers are always present
   res.set({
-    "X-Frame-Options": "DENY",
+    "X-Frame-Options": "SAMEORIGIN",
     "X-Content-Type-Options": "nosniff",
     "X-XSS-Protection": "1; mode=block",
     "Referrer-Policy": "strict-origin-when-cross-origin",
@@ -240,7 +242,7 @@ app.post(
   "/api/upload",
   veryfyTocken,
   helmet({
-    frameguard: { action: "deny" },
+    frameguard: { action: "sameorigin" },
     contentSecurityPolicy: {
       useDefaults: false,
       directives: {
@@ -252,8 +254,8 @@ app.post(
       },
     },
     crossOriginEmbedderPolicy: false,
-    crossOriginOpenerPolicy: { policy: "same-origin" },
-    crossOriginResourcePolicy: { policy: "same-origin" },
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
   }),
   (req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -296,7 +298,7 @@ app.get("/api/csrf-token", authenticate, getCSRFToken);
 app.use("/api", (req, res, next) => {
   // Ensure anti-clickjacking headers are always present on API routes
   res.set({
-    "X-Frame-Options": "DENY",
+    "X-Frame-Options": "SAMEORIGIN",
     "X-Content-Type-Options": "nosniff",
     "X-XSS-Protection": "1; mode=block",
     "Referrer-Policy": "strict-origin-when-cross-origin",
@@ -311,7 +313,7 @@ app.use("/api", (req, res, next) => {
 app.use("/api", (req, res, next) => {
   // Ensure all API responses have comprehensive security headers
   res.set({
-    "X-Frame-Options": "DENY",
+    "X-Frame-Options": "SAMEORIGIN",
     "X-Content-Type-Options": "nosniff",
     "X-XSS-Protection": "1; mode=block",
     "Content-Security-Policy":
@@ -319,9 +321,8 @@ app.use("/api", (req, res, next) => {
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy":
       "camera=(), microphone=(), geolocation=(), payment=()",
-    "Cross-Origin-Embedder-Policy": "require-corp",
-    "Cross-Origin-Opener-Policy": "same-origin",
-    "Cross-Origin-Resource-Policy": "same-origin",
+    // Don't set COOP/COEP headers to allow OAuth popups to work
+    "Cross-Origin-Resource-Policy": "cross-origin",
   });
 
   // Add HSTS for production

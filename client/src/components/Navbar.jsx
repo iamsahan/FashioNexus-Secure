@@ -19,8 +19,13 @@ export default function Navbar() {
   const [showSignIn, setShowSignIn] = useState(false);
   const [showSignUp, setShowSignUp] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false); // Dropdown state
-  const { currentUser } = useSelector((state) => state.user);
+  const { currentUser } = useSelector((state) => state.user || {});
   const dispatch = useDispatch();
+
+  // Debug: Log currentUser when it changes
+  React.useEffect(() => {
+    console.log('Navbar - Current User:', currentUser);
+  }, [currentUser]);
 
   const handleSignInClick = () => {
     setShowSignIn(true);
@@ -40,7 +45,9 @@ export default function Navbar() {
   const handleSignOut = async () => {
     try {
       dispatch(signOutUserstart());
-      const res = await fetch("/api/auth/signout");
+      const res = await fetch("/api/auth/signout", {
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success === false) {
         dispatch(signOutUserFailure(data.message));
@@ -48,7 +55,7 @@ export default function Navbar() {
       }
       dispatch(signOutUserSuccess(data));
     } catch (error) {
-      dispatch(signOutUserFailure(data.message));
+      dispatch(signOutUserFailure(error.message));
     }
   };
 
@@ -89,9 +96,12 @@ export default function Navbar() {
                 onMouseLeave={() => setShowDropdown(false)}
               >
                 <img
-                  src={currentUser.avatar} // Replace with dynamic source
+                  src={currentUser.avatar || 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png'} 
                   alt="Profile"
-                  className="w-8 h-8 rounded-full cursor-pointer"
+                  className="w-8 h-8 rounded-full cursor-pointer object-cover"
+                  onError={(e) => {
+                    e.target.src = 'https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png';
+                  }}
                 />
                 {/* Dropdown Menu */}
                 <AnimatePresence>

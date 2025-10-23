@@ -14,6 +14,7 @@ import { validateCSRFToken } from "../utils/csrfProtection.js";
 const router = express.Router();
 
 // Public routes - anyone can view inventory
+router.get("/", getInventories);
 router.get("/all-offers", getInventorieswithOffers);
 router.get("/search/get", getInventorySearch);
 router.get("/:id", getInventory);

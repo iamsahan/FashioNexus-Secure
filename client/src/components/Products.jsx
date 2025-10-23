@@ -11,10 +11,23 @@ export default function Products() {
       setLoading(true);
       try {
         const res = await fetch(`/api/inventories/search/get`);
+        
+        // Check if response is ok
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
+        // Check if response is JSON
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error("Server returned non-JSON response");
+        }
+        
         const data = await res.json();
         setInventories(data);
       } catch (error) {
         console.error("Error fetching inventories:", error);
+        setInventories([]); // Set empty array on error
       }
       setLoading(false);
     };

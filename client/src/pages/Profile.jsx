@@ -26,7 +26,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
 export default function Profile() {
-  const { currentUser, loading, error } = useSelector((state) => state.user);
+  const { currentUser, loading, error } = useSelector((state) => state.user || {});
   const fileRef = useRef(null);
   const [file, setFile] = useState(undefined);
   const [filePerc, setFilePerc] = useState(0);
@@ -34,6 +34,13 @@ export default function Profile() {
   const [formData, setFormData] = useState({});
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const dispatch = useDispatch();
+
+  // Redirect to home if not logged in
+  useEffect(() => {
+    if (!currentUser) {
+      console.log("No current user found in Profile");
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     if (file) {
@@ -142,6 +149,22 @@ export default function Profile() {
     });
   };
 
+  // Show loading or redirect if no user
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center">
+          <div className="text-center">
+            <FaSpinner className="animate-spin text-4xl text-[#d4a373] mx-auto mb-4" />
+            <p className="text-gray-600">Loading profile...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -194,7 +217,7 @@ export default function Profile() {
                 id="firstname"
                 placeholder="First Name"
                 className="border p-3 rounded-lg w-full"
-                defaultValue={currentUser.firstname}
+                defaultValue={currentUser?.firstname || ''}
                 onChange={handleChange}
               />
               <input
@@ -202,7 +225,7 @@ export default function Profile() {
                 id="lastname"
                 placeholder="Last Name"
                 className="border p-3 rounded-lg w-full"
-                defaultValue={currentUser.lastname}
+                defaultValue={currentUser?.lastname || ''}
                 onChange={handleChange}
               />
             </div>
@@ -212,7 +235,7 @@ export default function Profile() {
               id="username"
               placeholder="Username"
               className="border p-3 rounded-lg w-full"
-              defaultValue={currentUser.username}
+              defaultValue={currentUser?.username || ''}
               onChange={handleChange}
             />
 
@@ -221,7 +244,7 @@ export default function Profile() {
               id="email"
               placeholder="Email"
               className="border p-3 rounded-lg w-full"
-              defaultValue={currentUser.email}
+              defaultValue={currentUser?.email || ''}
               onChange={handleChange}
               readOnly={true}
             />

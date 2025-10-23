@@ -12,18 +12,36 @@ export default function OAuth() {
   const handleGoogleClick = async () => {
     try {
       const provider = new GoogleAuthProvider();
+      // Add custom parameters to avoid COOP issues
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
       const auth = getAuth(app);
 
-      const result = await signInWithPopup(auth, provider);
+      // Use signInWithPopup with proper error handling
+      const result = await signInWithPopup(auth, provider).catch((popupError) => {
+        // If popup is blocked, provide user feedback
+        if (popupError.code === 'auth/popup-blocked') {
+          alert('Please allow popups for this site to sign in with Google');
+        } else if (popupError.code === 'auth/popup-closed-by-user') {
+          console.log('Popup closed by user');
+        } else if (popupError.code === 'auth/cancelled-popup-request') {
+          console.log('Popup request cancelled');
+        }
+        throw popupError;
+      });
+
       const idToken = await result.user.getIdToken();
       const res = await fetch("/api/auth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
         credentials: "include",
+        body: JSON.stringify({ idToken }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Google auth failed");
+      console.log("OAuth - User data received:", data);
+      console.log("OAuth - Dispatching user:", { ...data.user, accessToken: data.accessToken });
       dispatch(signInSuccess({ ...data.user, accessToken: data.accessToken }));
       navigate("/");
     } catch (error) {

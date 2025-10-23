@@ -18,7 +18,7 @@ export default defineConfig({
     },
     proxy: {
       "/api": {
-        target: "http://16.171.225.212/",
+        target: "http://localhost:3000",
         secure: false,
         changeOrigin: true,
         configure: (proxy, options) => {
@@ -30,7 +30,7 @@ export default defineConfig({
 
             // Add comprehensive security headers to API responses
             proxyRes.headers["X-Content-Type-Options"] = "nosniff";
-            proxyRes.headers["X-Frame-Options"] = "DENY";
+            proxyRes.headers["X-Frame-Options"] = "SAMEORIGIN";
             proxyRes.headers["X-XSS-Protection"] = "1; mode=block";
             proxyRes.headers["Referrer-Policy"] =
               "strict-origin-when-cross-origin";
@@ -38,29 +38,32 @@ export default defineConfig({
               "default-src 'self'; script-src 'none'; style-src 'none'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'";
             proxyRes.headers["Permissions-Policy"] =
               "camera=(), microphone=(), geolocation=(), payment=()";
+            // Don't set COOP/COEP headers - they break OAuth popups
           });
         },
       },
     },
-    // Security headers for development server - More secure CSP with specific hashes
+    // Security headers for development server - Relaxed for development
     headers: {
       "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
+      "X-Frame-Options": "SAMEORIGIN",
       "X-XSS-Protection": "1; mode=block",
       "Referrer-Policy": "strict-origin-when-cross-origin",
       "Permissions-Policy":
         "camera=(), microphone=(), geolocation=(), payment=()",
-      // Secure CSP for development with specific allowances for necessary libraries
+      // Don't set COOP/COEP headers on main document to allow OAuth popups
+      // These headers prevent popups from working properly
+      // Relaxed CSP for development to allow React Fast Refresh and Google OAuth
       "Content-Security-Policy":
         "default-src 'self'; " +
-        "script-src 'self' 'wasm-unsafe-eval'; " +
-        "style-src 'self' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' 'sha256-hx0up+5msNNPOIf047hgFKR59NaAvp5txflkdef6WVE=' 'sha256-biLFinpqYMtWHmXfkA1BPeCY0/fNt46SAZ+BBk5YUog=' https://fonts.googleapis.com; " +
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' https://apis.google.com https://accounts.google.com; " +
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com; " +
         "img-src 'self' data: https: blob:; " +
-        "connect-src 'self' ws: wss: http://localhost:3000 http://127.0.0.1:3000 http://16.171.225.212; " +
+        "connect-src 'self' ws: wss: http://localhost:* http://127.0.0.1:* https://accounts.google.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com; " +
+        "frame-src 'self' https://accounts.google.com https://*.firebaseapp.com; " +
         "media-src 'self'; " +
         "object-src 'none'; " +
-        "frame-src 'none'; " +
         "base-uri 'self'; " +
         "form-action 'self';",
     },
@@ -89,10 +92,11 @@ export default defineConfig({
     // Security headers for preview server
     headers: {
       "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
+      "X-Frame-Options": "SAMEORIGIN",
       "X-XSS-Protection": "1; mode=block",
       "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
       "Referrer-Policy": "strict-origin-when-cross-origin",
+      // Don't set COOP/COEP to allow OAuth popups
     },
   },
   plugins: [react()],

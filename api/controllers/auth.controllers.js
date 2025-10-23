@@ -55,7 +55,7 @@ export const signin = async (req, res, next) => {
     await user.save();
     const { password: pass, refreshTokens, ...rest } = user._doc;
     res
-      .cookie("access_token", token, {
+      .cookie("access_token", accessToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
@@ -74,20 +74,26 @@ export const signin = async (req, res, next) => {
 
 export const google = async (req, res, next) => {
   try {
-    // Input validation for email
-    const { email } = req.body;
-    if (
-      !email ||
-      typeof email !== "string" ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-    ) {
+    const { idToken } = req.body;
+    
+    if (!idToken) {
+      return next(errorHandler(400, "ID token is required"));
+    }
+
+    // Verify Firebase ID token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const { email, name, picture } = decodedToken;
+
+    // Validate email format
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return next(errorHandler(400, "Valid email is required"));
     }
 
     // Sanitize email to prevent NoSQL injection
     const sanitizedEmail = email.toLowerCase().trim();
 
-    const user = await User.findOne({ email: sanitizedEmail });
+    let user = await User.findOne({ email: sanitizedEmail });
+    
     if (user) {
       const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
       const { password: pass, ...rest } = user._doc;
@@ -104,16 +110,15 @@ export const google = async (req, res, next) => {
       const generatedPassword =
         Math.random().toString(36).slice(-8) +
         Math.random().toString(36).slice(-8);
-      user = await User.create({
+      const newUser = await User.create({
         username:
           name.split(" ").join("").toLowerCase() +
           Math.random().toString(36).slice(-4),
-        email,
+        email: sanitizedEmail,
         password: bcryptjs.hashSync(generatedPassword, 10),
-        avatar: photo,
+        avatar: picture,
         usertype: "customer",
       });
-      await newUser.save();
       const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET);
       const { password: pass, ...rest } = newUser._doc;
       res

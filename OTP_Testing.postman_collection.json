@@ -1,0 +1,450 @@
+{
+  "info": {
+    "name": "OTP Security Testing",
+    "description": "Complete test suite for OTP sending and verification with rate limiting",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "testEmail",
+      "value": "test@example.com"
+    },
+    {
+      "key": "otpCode",
+      "value": "123456"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Send OTP - Valid Email",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"Response has success true\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.message).to.include('OTP sent');",
+              "});",
+              "",
+              "pm.test(\"Response time is less than 5000ms\", function () {",
+              "    pm.expect(pm.response.responseTime).to.be.below(5000);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{testEmail}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/sendotp",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "sendotp"]
+        }
+      }
+    },
+    {
+      "name": "2. Verify OTP - Valid Code",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"OTP verified successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.message).to.include('verified');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"otp\": \"{{otpCode}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/verifyotp",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "verifyotp"]
+        }
+      }
+    },
+    {
+      "name": "3. Send OTP - Invalid Email Format",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"Error message for invalid email\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.message).to.include('Invalid email');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"invalid-email-format\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/sendotp",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "sendotp"]
+        }
+      }
+    },
+    {
+      "name": "4. Send OTP - Missing Email",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"Error message for missing email\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/sendotp",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "sendotp"]
+        }
+      }
+    },
+    {
+      "name": "5. Verify OTP - Wrong Code",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"Invalid OTP message\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.message).to.include('Invalid');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{testEmail}}\",\n  \"otp\": \"000000\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/verifyotp",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "verifyotp"]
+        }
+      }
+    },
+    {
+      "name": "6. Rate Limit Test - Send OTP",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// This test should be run 11 times using Collection Runner",
+              "var iteration = pm.info.iteration;",
+              "",
+              "if (iteration < 10) {",
+              "    pm.test(\"Request \" + (iteration + 1) + \" - Should succeed\", function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "} else {",
+              "    pm.test(\"Request \" + (iteration + 1) + \" - Should be rate limited\", function () {",
+              "        pm.response.to.have.status(429);",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.message).to.include('Too many');",
+              "    });",
+              "}",
+              "",
+              "pm.test(\"Rate limit headers present\", function () {",
+              "    pm.response.to.have.header('RateLimit-Limit');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"ratelimit@test.com\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/sendotp",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "sendotp"]
+        }
+      }
+    },
+    {
+      "name": "7. Cooldown Test - Resend Too Soon",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Run this immediately after a successful send OTP",
+              "pm.test(\"Should be blocked by cooldown\", function () {",
+              "    pm.response.to.have.status(429);",
+              "});",
+              "",
+              "pm.test(\"Cooldown message present\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.message).to.include('wait');",
+              "});"
+            ]
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "// First send an OTP",
+              "pm.sendRequest({",
+              "    url: pm.variables.get('baseUrl') + '/api/auth/sendotp',",
+              "    method: 'POST',",
+              "    header: {",
+              "        'Content-Type': 'application/json'",
+              "    },",
+              "    body: {",
+              "        mode: 'raw',",
+              "        raw: JSON.stringify({ email: 'cooldown@test.com' })",
+              "    }",
+              "}, function (err, response) {",
+              "    console.log('Pre-request OTP sent');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"cooldown@test.com\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/sendotp",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "sendotp"]
+        }
+      }
+    },
+    {
+      "name": "8. Max Attempts Test - Setup",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"OTP sent for max attempts test\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"maxattempts@test.com\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/sendotp",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "sendotp"]
+        }
+      }
+    },
+    {
+      "name": "9. Max Attempts Test - Verify Wrong OTP",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Run this 5 times to trigger account block",
+              "var iteration = pm.info.iteration;",
+              "",
+              "if (iteration < 4) {",
+              "    pm.test(\"Attempt \" + (iteration + 1) + \" - Should fail\", function () {",
+              "        pm.response.to.have.status(400);",
+              "    });",
+              "} else {",
+              "    pm.test(\"Attempt \" + (iteration + 1) + \" - Should be blocked\", function () {",
+              "        pm.response.to.have.status(429);",
+              "        var jsonData = pm.response.json();",
+              "        pm.expect(jsonData.message).to.include('Too many attempts');",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"maxattempts@test.com\",\n  \"otp\": \"000000\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/verifyotp",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "verifyotp"]
+        }
+      }
+    },
+    {
+      "name": "10. Check Rate Limit Headers",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Rate limit headers are present\", function () {",
+              "    pm.response.to.have.header('RateLimit-Limit');",
+              "    pm.response.to.have.header('RateLimit-Remaining');",
+              "});",
+              "",
+              "pm.test(\"Log rate limit info\", function () {",
+              "    var limit = pm.response.headers.get('RateLimit-Limit');",
+              "    var remaining = pm.response.headers.get('RateLimit-Remaining');",
+              "    var reset = pm.response.headers.get('RateLimit-Reset');",
+              "    ",
+              "    console.log('Rate Limit: ' + limit);",
+              "    console.log('Remaining: ' + remaining);",
+              "    console.log('Reset at: ' + new Date(reset * 1000));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"headers@test.com\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/sendotp",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "sendotp"]
+        }
+      }
+    }
+  ]
+}
