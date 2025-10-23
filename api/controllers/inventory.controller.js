@@ -142,15 +142,17 @@ export const getInventorySearch = async (req, res, next) => {
       ? req.query.sort
       : "createdAt";
 
+    // Sort order: ascending or descending
     const order = req.query.order === "asc" ? 1 : -1;
 
+    // Query database using filters, search, and sorting
     const events = await Inventory.find({
-      ItemName: { $regex: safeSearch, $options: "i" },
+      ItemName: { $regex: safeSearch, $options: "i" }, // Case-insensitive search
       Category,
     })
-      .sort({ [sortField]: order })
-      .skip(startIndex)
-      .limit(limit);
+      .sort({ [sortField]: order }) // Sort by chosen field
+      .skip(startIndex) // Pagination skip
+      .limit(limit); // Limit number of results
 
     return res.status(200).json(events);
   } catch (error) {
